@@ -47,7 +47,9 @@ function mapEntry(row: any): EntryRecord {
     youtubeVideoId: row.youtube_video_id,
     notes: row.notes,
     moderationStatus: row.moderation_status,
-    runningOrder: row.running_order
+    runningOrder: row.running_order,
+    statusToken: row.status_token ?? null,
+    moderationNotes: row.moderation_notes ?? null
   };
 }
 

@@ -31,6 +31,8 @@ export interface EntryRecord {
   notes?: string | null;
   moderationStatus: ModerationStatus;
   runningOrder?: number | null;
+  statusToken?: string | null;
+  moderationNotes?: string | null;
 }
 
 export interface ScoreRecord {

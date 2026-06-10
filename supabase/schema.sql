@@ -63,11 +63,13 @@ create table entries (
   moderation_status moderation_status not null default 'Pending',
   playback_verified boolean not null default false,
   moderation_notes text,
+  status_token text unique,
   running_order int null,
   final_rank int null,
   created_at timestamptz not null default now(),
   approved_at timestamptz null
 );
+create index if not exists idx_entries_status_token on entries (status_token);
 
 alter table competitions
   add constraint competitions_current_playback_entry_id_fkey

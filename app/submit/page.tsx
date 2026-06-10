@@ -16,12 +16,14 @@ export default async function SubmitPage({ searchParams }: { searchParams?: Sear
   const bundle = await getActiveCompetitionBundle();
   const error = pickMessage(params.error);
   const success = pickMessage(params.success);
+  const token = pickMessage(params.token);
   const competition = bundle.competition;
   const submissionsOpen = competition?.status === 'Submissions Open';
+  const statusPath = token ? `/status/${token}` : null;
 
   return (
     <main className="page-shell page-stack">
-      <SiteNav mutedText="Clean public intake · YouTube-only submissions" />
+      <SiteNav mutedText="Private intake · YouTube-only submissions" />
       <BrandHeader />
 
       <section className="grid">
@@ -31,8 +33,8 @@ export default async function SubmitPage({ searchParams }: { searchParams?: Sear
             <span className="tag tag-action">Action required</span>
           </div>
           <p className="muted">
-            Clean entrant flow only. Your YouTube link is saved as a pending entry, then the admin verifies
-            playback before it appears for judging or OBS playback.
+            Your YouTube link is saved as a pending entry. The admin verifies playback and approves or rejects it.
+            You will receive a private status link after submitting so you can check your entry's status anytime.
           </p>
 
           {!bundle.configured && (
@@ -49,7 +51,24 @@ export default async function SubmitPage({ searchParams }: { searchParams?: Sear
             </div>
           )}
 
-          {success && <div className="card success-card"><strong>Success</strong><p className="muted">{success}</p></div>}
+          {success && (
+            <div className="card success-card">
+              <strong>Success</strong>
+              <p className="muted">{success}</p>
+              {statusPath && (
+                <>
+                  <p className="muted" style={{ marginTop: 10 }}>Save this private link to check your entry status:</p>
+                  <div className="status-link-row">
+                    <code className="status-link-code">{statusPath}</code>
+                    <a className="btn secondary" href={statusPath}>Open Status Page</a>
+                  </div>
+                  <p className="muted" style={{ marginTop: 8, fontSize: '.8rem' }}>
+                    Bookmark this link. Anyone with this link can see your entry status. Do not share it publicly.
+                  </p>
+                </>
+              )}
+            </div>
+          )}
           {error && <div className="card error-card"><strong>Notice</strong><p className="muted">{error}</p></div>}
 
           <form className="form" action={submitEntryAction}>
@@ -94,8 +113,9 @@ export default async function SubmitPage({ searchParams }: { searchParams?: Sear
           </div>
           <div className="list">
             <div className="card"><strong>YouTube only</strong><p className="muted">No direct uploads, Instagram, or TikTok in this build.</p></div>
-            <div className="card"><strong>Embeddable playback required</strong><p className="muted">Private, age-restricted, or embed-disabled videos should be rejected.</p></div>
+            <div className="card"><strong>Embeddable playback required</strong><p className="muted">Private, age-restricted, or embed-disabled videos will be rejected.</p></div>
             <div className="card"><strong>Admin moderation</strong><p className="muted">Every entry is reviewed before it appears in judge and OBS playback queues.</p></div>
+            <div className="card"><strong>Private status link</strong><p className="muted">After submitting you get a personal link to check approval status. Nothing about your entry is shown publicly.</p></div>
           </div>
         </aside>
       </section>

@@ -144,6 +144,8 @@ export async function submitEntryAction(formData: FormData) {
     redirect(routeWithMessage('/submit', 'error', 'Submissions are not open right now.'));
   }
 
+  const statusToken = crypto.randomBytes(18).toString('base64url');
+
   const { error } = await supabase.from('entries').insert({
     competition_id: competitionId,
     entrant_name: entrantName,
@@ -153,7 +155,8 @@ export async function submitEntryAction(formData: FormData) {
     youtube_video_id: videoId,
     notes: notes || null,
     moderation_status: 'Pending',
-    playback_verified: false
+    playback_verified: false,
+    status_token: statusToken
   });
 
   if (error) {
@@ -163,7 +166,7 @@ export async function submitEntryAction(formData: FormData) {
   await logAudit('entry_submitted', 'entries', { title, entrantEmail, youtubeUrl }, competitionId);
   revalidatePath('/submit');
   revalidatePath('/admin');
-  redirect(routeWithMessage('/submit', 'success', 'Entry submitted successfully and sent to moderation.'));
+  redirect(`/submit?success=${encodeURIComponent('Entry submitted. Save your private status link below to check approval.')}&token=${encodeURIComponent(statusToken)}`);
 }
 
 export async function adminLoginAction(formData: FormData) {

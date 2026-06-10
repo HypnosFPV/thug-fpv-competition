@@ -1,6 +1,6 @@
 import { stepPlaybackQueueAction } from '@/app/actions';
 import { SiteNav } from '@/components/SiteNav';
-import { isAdminAuthenticated } from '@/lib/session';
+import { getJudgeSession, isAdminAuthenticated } from '@/lib/session';
 import { getActiveCompetitionBundle, getApprovedEntries, getCurrentPlaybackEntry } from '@/lib/server-data';
 import { getYouTubeEmbedUrl } from '@/lib/youtube';
 
@@ -18,23 +18,44 @@ export default async function PlaybackPage({ searchParams }: { searchParams?: Se
   const params = (await searchParams) ?? {};
   const error = pickMessage(params.error);
   const success = pickMessage(params.success);
+
+  const isAdmin = await isAdminAuthenticated();
+  const judgeSession = await getJudgeSession();
+  const isAuthorized = isAdmin || Boolean(judgeSession);
+
+  if (!isAuthorized) {
+    return (
+      <main className="page-shell page-stack playback-shell">
+        <SiteNav mutedText="OBS playback is restricted to admin and judges" />
+        <section className="panel narrow-panel">
+          <div className="section-head">
+            <h2>Restricted Access</h2>
+            <span className="tag tag-action">Protected</span>
+          </div>
+          <p className="muted">This page is only visible to the admin and active judges.</p>
+          <p className="muted">
+            Log in as admin at <a className="inline-link" href="/admin">/admin</a> or as a judge at <a className="inline-link" href="/judge">/judge</a> first, then return here.
+          </p>
+        </section>
+      </main>
+    );
+  }
+
   const bundle = await getActiveCompetitionBundle();
   const competition = bundle.competition;
   const currentEntry = getCurrentPlaybackEntry(bundle);
   const approvedEntries = getApprovedEntries(bundle.entries);
-  const isAdmin = await isAdminAuthenticated();
 
   return (
     <main className="page-shell page-stack playback-shell">
-      <SiteNav mutedText="OBS Browser Source · use this route for clean livestream playback" />
+      <SiteNav mutedText="OBS Browser Source · admin/judge only" />
       <section className="panel">
         <div className="section-head">
           <div>
             <p className="eyebrow">OBS Playback Route</p>
             <h2 style={{ margin: '8px 0 10px' }}>YouTube Queue Player</h2>
             <p className="muted">
-              This route now reads the active playback entry from Supabase. The admin can step forward or backward
-              through the approved queue while the stream runs.
+              Approved entries appear here automatically. Admin can step forward or backward through the queue.
             </p>
           </div>
           <span className="tag">/playback</span>
@@ -48,12 +69,7 @@ export default async function PlaybackPage({ searchParams }: { searchParams?: Se
           <div className="card notice-card">
             <strong>Queue is empty</strong>
             <p className="muted">
-              Approved entries found: {approvedEntries.length}. Competition status: {competition.status}.
-            </p>
-            <p className="muted">
-              {approvedEntries.length === 0
-                ? 'No entries have moderation status "Approved" yet. Go to /admin, set status to Approved, and Save.'
-                : 'Approved entries exist but no current playback selected. Click "Send to /playback" in the admin queue panel.'}
+              Approved entries: {approvedEntries.length}. Competition status: {competition.status}.
             </p>
           </div>
         )}
