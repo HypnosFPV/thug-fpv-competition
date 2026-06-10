@@ -11,6 +11,7 @@ import {
   updateCompetitionStatusAction,
   updateJudgeSlotAction
 } from '@/app/actions';
+import { AdminNotificationWatcher } from '@/components/AdminNotificationWatcher';
 import { SiteNav } from '@/components/SiteNav';
 import { COMPETITION_STATUSES } from '@/lib/constants';
 import { getActiveCompetitionBundle, getApprovedEntries, getCurrentPlaybackEntry, getLeaderboard, getPendingEntries } from '@/lib/server-data';
@@ -65,6 +66,11 @@ export default async function AdminPage({ searchParams }: { searchParams?: Searc
           <section className="toolbar">
             <form action={adminLogoutAction}><button className="btn secondary" type="submit">Log Out Admin</button></form>
           </section>
+
+          <AdminNotificationWatcher
+            initialPending={pendingEntries.filter((e) => e.moderationStatus === 'Pending').length}
+            initialIds={pendingEntries.filter((e) => e.moderationStatus === 'Pending').map((e) => e.id)}
+          />
 
           {!bundle.configured && (
             <section className="panel">
