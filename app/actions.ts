@@ -7,7 +7,6 @@ import { redirect } from 'next/navigation';
 import { extractYouTubeId } from '@/lib/youtube';
 import { clearAdminSession, clearJudgeSession, getJudgeSession, isAdminAuthenticated, setAdminSession, setJudgeSession } from '@/lib/session';
 import { getActiveCompetitionBundle, getApprovedEntries, getCurrentPlaybackEntry, getLeaderboard } from '@/lib/server-data';
-import { sendApprovalEmail, sendRejectionEmail, sendSubmissionNotification } from '@/lib/notifications';
 import { getSupabaseAdmin, isSupabaseConfigured } from '@/lib/server-supabase';
 import type { CompetitionStatus } from '@/lib/types';
 
@@ -53,11 +52,6 @@ function generatePin() {
   return `${crypto.randomInt(0, 10000)}`.padStart(4, '0');
 }
 
-function cleanOptionalEmail(value: FormDataEntryValue | null) {
-  const email = `${value || ''}`.trim();
-  return email.length ? email : null;
-}
-
 function slugify(input: string) {
   return input
     .toLowerCase()
@@ -66,13 +60,7 @@ function slugify(input: string) {
     .slice(0, 48);
 }
 
-async function createCompetitionWithJudges(params: {
-  name: string;
-  password: string;
-  notificationEmail: string | null;
-  backupNotificationEmail: string | null;
-  emailNotificationsEnabled: boolean;
-}) {
+async function createCompetitionWithJudges(params: { name: string; password: string }) {
   const supabase = requireSupabaseOrRedirect('/admin');
   const slug = `${slugify(params.name) || 'competition'}-${Date.now().toString().slice(-6)}`;
 
@@ -82,10 +70,7 @@ async function createCompetitionWithJudges(params: {
       name: params.name,
       slug,
       status: 'Draft',
-      shared_event_password: params.password,
-      notification_email: params.notificationEmail,
-      backup_notification_email: params.backupNotificationEmail,
-      email_notifications_enabled: params.emailNotificationsEnabled
+      shared_event_password: params.password
     })
     .select('*')
     .single();
@@ -112,25 +97,12 @@ export async function createInitialCompetitionAction(formData: FormData) {
   await requireAdmin();
   const name = `${formData.get('name') || ''}`.trim();
   const password = `${formData.get('sharedEventPassword') || ''}`.trim();
-  const notificationEmail = cleanOptionalEmail(formData.get('notificationEmail'));
-  const backupNotificationEmail = cleanOptionalEmail(formData.get('backupNotificationEmail'));
-  const emailNotificationsEnabled = formData.get('emailNotificationsEnabled') === 'on';
 
   if (!name || !password) {
     redirect(routeWithMessage('/admin', 'error', 'Competition name and shared event password are required.'));
   }
 
-  if (emailNotificationsEnabled && !notificationEmail) {
-    redirect(routeWithMessage('/admin', 'error', 'A primary notification email is required when email notifications are enabled.'));
-  }
-
-  await createCompetitionWithJudges({
-    name,
-    password,
-    notificationEmail,
-    backupNotificationEmail,
-    emailNotificationsEnabled
-  });
+  await createCompetitionWithJudges({ name, password });
   revalidatePath('/');
   revalidatePath('/submit');
   revalidatePath('/judge');
@@ -164,7 +136,7 @@ export async function submitEntryAction(formData: FormData) {
 
   const { data: competition } = await supabase
     .from('competitions')
-    .select('id, name, status, notification_email, backup_notification_email, email_notifications_enabled')
+    .select('id, status')
     .eq('id', competitionId)
     .maybeSingle();
 
@@ -188,34 +160,10 @@ export async function submitEntryAction(formData: FormData) {
     redirect(routeWithMessage('/submit', 'error', 'Could not save the entry. Please try again.'));
   }
 
-  const emailResult = await sendSubmissionNotification({
-    competitionName: competition.name,
-    entryTitle: title,
-    entrantName,
-    entrantEmail,
-    youtubeUrl,
-    notes: notes || null,
-    primaryEmail: competition.notification_email,
-    backupEmail: competition.backup_notification_email,
-    enabled: Boolean(competition.email_notifications_enabled)
-  });
-
-  await logAudit('entry_submitted', 'entries', {
-    title,
-    entrantEmail,
-    youtubeUrl,
-    notificationAttempted: emailResult.attempted,
-    notificationDelivered: emailResult.delivered,
-    notificationReason: emailResult.reason
-  }, competitionId);
+  await logAudit('entry_submitted', 'entries', { title, entrantEmail, youtubeUrl }, competitionId);
   revalidatePath('/submit');
   revalidatePath('/admin');
-
-  const successMessage = emailResult.delivered
-    ? 'Entry submitted successfully and notification email sent.'
-    : 'Entry submitted successfully and sent to moderation.';
-
-  redirect(routeWithMessage('/submit', 'success', successMessage));
+  redirect(routeWithMessage('/submit', 'success', 'Entry submitted successfully and sent to moderation.'));
 }
 
 export async function adminLoginAction(formData: FormData) {
@@ -311,16 +259,9 @@ export async function updateCompetitionSettingsAction(formData: FormData) {
   const competitionId = `${formData.get('competitionId') || ''}`.trim();
   const name = `${formData.get('name') || ''}`.trim();
   const sharedEventPassword = `${formData.get('sharedEventPassword') || ''}`.trim();
-  const notificationEmail = cleanOptionalEmail(formData.get('notificationEmail'));
-  const backupNotificationEmail = cleanOptionalEmail(formData.get('backupNotificationEmail'));
-  const emailNotificationsEnabled = formData.get('emailNotificationsEnabled') === 'on';
 
   if (!competitionId || !name || !sharedEventPassword) {
     redirect(routeWithMessage('/admin', 'error', 'Competition name and shared event password are required.'));
-  }
-
-  if (emailNotificationsEnabled && !notificationEmail) {
-    redirect(routeWithMessage('/admin', 'error', 'A primary notification email is required when email notifications are enabled.'));
   }
 
   const supabase = requireSupabaseOrRedirect('/admin');
@@ -329,9 +270,6 @@ export async function updateCompetitionSettingsAction(formData: FormData) {
     .update({
       name,
       shared_event_password: sharedEventPassword,
-      notification_email: notificationEmail,
-      backup_notification_email: backupNotificationEmail,
-      email_notifications_enabled: emailNotificationsEnabled,
       updated_at: new Date().toISOString()
     })
     .eq('id', competitionId);
@@ -340,12 +278,7 @@ export async function updateCompetitionSettingsAction(formData: FormData) {
     redirect(routeWithMessage('/admin', 'error', 'Unable to update competition settings.'));
   }
 
-  await logAudit('competition_settings_updated', 'competitions', {
-    name,
-    notificationEmail,
-    backupNotificationEmail,
-    emailNotificationsEnabled
-  }, competitionId);
+  await logAudit('competition_settings_updated', 'competitions', { name }, competitionId);
   revalidatePath('/');
   revalidatePath('/submit');
   revalidatePath('/judge');
@@ -410,87 +343,6 @@ export async function resetJudgePinsAction(formData: FormData) {
   redirect(routeWithMessage('/admin', 'success', 'All judge PINs were reset.'));
 }
 
-export async function moderateEntryAction(formData: FormData) {
-  await requireAdmin();
-  const competitionId = `${formData.get('competitionId') || ''}`.trim();
-  const entryId = `${formData.get('entryId') || ''}`.trim();
-  const moderationStatus = `${formData.get('moderationStatus') || ''}`.trim();
-  const playbackVerified = formData.get('playbackVerified') === 'true';
-  const runningOrderRaw = `${formData.get('runningOrder') || ''}`.trim();
-  const moderationNotes = `${formData.get('moderationNotes') || ''}`.trim();
-
-  if (!competitionId || !entryId || !moderationStatus) {
-    redirect(routeWithMessage('/admin', 'error', 'Entry moderation values are incomplete.'));
-  }
-
-  const supabase = requireSupabaseOrRedirect('/admin');
-
-  let runningOrder = runningOrderRaw ? Number(runningOrderRaw) : null;
-  const approvedAt = moderationStatus === 'Approved' ? new Date().toISOString() : null;
-
-  // Auto-assign running order when approving an entry that doesn't have one
-  if (moderationStatus === 'Approved' && !Number.isFinite(runningOrder as number)) {
-    const { data: maxRow } = await supabase
-      .from('entries')
-      .select('running_order')
-      .eq('competition_id', competitionId)
-      .eq('moderation_status', 'Approved')
-      .not('running_order', 'is', null)
-      .order('running_order', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    runningOrder = (maxRow?.running_order ?? 0) + 1;
-  }
-
-  const { error } = await supabase
-    .from('entries')
-    .update({
-      moderation_status: moderationStatus,
-      playback_verified: playbackVerified,
-      running_order: Number.isFinite(runningOrder as number) ? runningOrder : null,
-      moderation_notes: moderationNotes || null,
-      approved_at: approvedAt
-    })
-    .eq('id', entryId)
-    .eq('competition_id', competitionId);
-
-  if (error) {
-    redirect(routeWithMessage('/admin', 'error', 'Unable to update the entry.'));
-  }
-
-  // If this is the first approved entry, auto-set as current playback
-  let autoSetPlayback = false;
-  if (moderationStatus === 'Approved') {
-    const { data: comp } = await supabase
-      .from('competitions')
-      .select('current_playback_entry_id')
-      .eq('id', competitionId)
-      .maybeSingle();
-
-    if (!comp?.current_playback_entry_id) {
-      await supabase
-        .from('competitions')
-        .update({ current_playback_entry_id: entryId, updated_at: new Date().toISOString() })
-        .eq('id', competitionId);
-      autoSetPlayback = true;
-    }
-  }
-
-  await logAudit('entry_moderated', 'entries', { entryId, moderationStatus, playbackVerified, runningOrder, autoSetPlayback }, competitionId);
-  revalidatePath('/submit');
-  revalidatePath('/judge');
-  revalidatePath('/admin');
-  revalidatePath('/playback');
-
-  const successMessage = moderationStatus === 'Approved'
-    ? autoSetPlayback
-      ? `Approved and added to playback queue as #${runningOrder}. Now playing on /playback.`
-      : `Approved and added to playback queue as #${runningOrder}.`
-    : 'Entry updated.';
-
-  redirect(routeWithMessage('/admin', 'success', successMessage));
-}
-
 export async function approveEntryAction(formData: FormData) {
   await requireAdmin();
   const competitionId = `${formData.get('competitionId') || ''}`.trim();
@@ -531,7 +383,7 @@ export async function approveEntryAction(formData: FormData) {
   let autoSetPlayback = false;
   const { data: comp } = await supabase
     .from('competitions')
-    .select('current_playback_entry_id, name, notification_email')
+    .select('current_playback_entry_id')
     .eq('id', competitionId)
     .maybeSingle();
 
@@ -543,40 +395,15 @@ export async function approveEntryAction(formData: FormData) {
     autoSetPlayback = true;
   }
 
-  const { data: entry } = await supabase
-    .from('entries')
-    .select('title, entrant_name, entrant_email, youtube_url')
-    .eq('id', entryId)
-    .maybeSingle();
-
-  let approvalEmailResult = { attempted: false, delivered: false, reason: 'skipped' as string };
-  if (entry && comp) {
-    approvalEmailResult = await sendApprovalEmail({
-      competitionName: comp.name,
-      entrantName: entry.entrant_name,
-      entrantEmail: entry.entrant_email,
-      entryTitle: entry.title,
-      youtubeUrl: entry.youtube_url,
-      runningOrder: nextOrder,
-      replyToEmail: comp.notification_email
-    });
-  }
-
-  await logAudit('entry_approved', 'entries', {
-    entryId,
-    runningOrder: nextOrder,
-    autoSetPlayback,
-    approvalEmail: approvalEmailResult
-  }, competitionId);
+  await logAudit('entry_approved', 'entries', { entryId, runningOrder: nextOrder, autoSetPlayback }, competitionId);
   revalidatePath('/submit');
   revalidatePath('/judge');
   revalidatePath('/admin');
   revalidatePath('/playback');
 
-  const emailNote = approvalEmailResult.delivered ? ' Entrant notified by email.' : '';
-  redirect(routeWithMessage('/admin', 'success', (autoSetPlayback
+  redirect(routeWithMessage('/admin', 'success', autoSetPlayback
     ? `Approved as #${nextOrder} and now playing on /playback.`
-    : `Approved as #${nextOrder} and added to playback queue.`) + emailNote));
+    : `Approved as #${nextOrder} and added to playback queue.`));
 }
 
 export async function rejectEntryAction(formData: FormData) {
@@ -590,7 +417,7 @@ export async function rejectEntryAction(formData: FormData) {
   }
 
   if (!rejectionReason || rejectionReason.length < 5) {
-    redirect(routeWithMessage('/admin', 'error', 'A rejection comment is required (at least 5 characters) and is emailed to the entrant.'));
+    redirect(routeWithMessage('/admin', 'error', 'A rejection comment is required (at least 5 characters) for the record.'));
   }
 
   const supabase = requireSupabaseOrRedirect('/admin');
@@ -612,7 +439,7 @@ export async function rejectEntryAction(formData: FormData) {
 
   const { data: comp } = await supabase
     .from('competitions')
-    .select('current_playback_entry_id, name, notification_email')
+    .select('current_playback_entry_id')
     .eq('id', competitionId)
     .maybeSingle();
 
@@ -623,33 +450,13 @@ export async function rejectEntryAction(formData: FormData) {
       .eq('id', competitionId);
   }
 
-  const { data: entry } = await supabase
-    .from('entries')
-    .select('title, entrant_name, entrant_email, youtube_url')
-    .eq('id', entryId)
-    .maybeSingle();
-
-  let rejectionEmailResult = { attempted: false, delivered: false, reason: 'skipped' as string };
-  if (entry && comp) {
-    rejectionEmailResult = await sendRejectionEmail({
-      competitionName: comp.name,
-      entrantName: entry.entrant_name,
-      entrantEmail: entry.entrant_email,
-      entryTitle: entry.title,
-      youtubeUrl: entry.youtube_url,
-      reason: rejectionReason,
-      replyToEmail: comp.notification_email
-    });
-  }
-
-  await logAudit('entry_rejected', 'entries', { entryId, rejectionEmail: rejectionEmailResult }, competitionId);
+  await logAudit('entry_rejected', 'entries', { entryId, rejectionReason }, competitionId);
   revalidatePath('/submit');
   revalidatePath('/judge');
   revalidatePath('/admin');
   revalidatePath('/playback');
 
-  const emailNote = rejectionEmailResult.delivered ? ' Entrant notified by email with your comment.' : '';
-  redirect(routeWithMessage('/admin', 'success', 'Entry rejected and removed from queue.' + emailNote));
+  redirect(routeWithMessage('/admin', 'success', 'Entry rejected and removed from queue.'));
 }
 
 export async function setPlaybackEntryAction(formData: FormData) {
@@ -806,10 +613,7 @@ export async function archiveAndResetCompetitionAction(formData: FormData) {
 
   await createCompetitionWithJudges({
     name: bundle.competition.name,
-    password: bundle.competition.shared_event_password,
-    notificationEmail: bundle.competition.notification_email,
-    backupNotificationEmail: bundle.competition.backup_notification_email,
-    emailNotificationsEnabled: bundle.competition.email_notifications_enabled
+    password: bundle.competition.shared_event_password
   });
 
   await clearJudgeSession();

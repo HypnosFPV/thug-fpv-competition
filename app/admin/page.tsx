@@ -36,11 +36,10 @@ export default async function AdminPage({ searchParams }: { searchParams?: Searc
   const approvedEntries = getApprovedEntries(bundle.entries);
   const leaderboard = getLeaderboard(bundle.entries, bundle.scores);
   const currentPlayback = getCurrentPlaybackEntry(bundle);
-  const resendConfigured = Boolean(process.env.RESEND_API_KEY && process.env.RESEND_FROM_EMAIL);
 
   return (
     <main className="page-shell page-stack">
-      <SiteNav mutedText="Admin control room · moderation, judging, playback, archive/reset, notifications" />
+      <SiteNav mutedText="Admin control room · moderation, judging, playback, archive/reset" />
 
       {!isAdmin ? (
         <section className="panel narrow-panel">
@@ -91,24 +90,6 @@ export default async function AdminPage({ searchParams }: { searchParams?: Searc
                   <span>Shared event password</span>
                   <input className="input" name="sharedEventPassword" placeholder="THUG2026" required />
                 </label>
-                <label className="field">
-                  <span>Notification email</span>
-                  <input className="input" name="notificationEmail" type="email" placeholder="admin@example.com" />
-                </label>
-                <label className="field">
-                  <span>Backup notification email</span>
-                  <input className="input" name="backupNotificationEmail" type="email" placeholder="optional@example.com" />
-                </label>
-                <label className="field checkbox-field">
-                  <span className="checkbox-line">
-                    <input name="emailNotificationsEnabled" type="checkbox" defaultChecked />
-                    <span>Enable Resend email notifications for new submissions</span>
-                  </span>
-                </label>
-                <div className="card notice-card">
-                  <strong>Resend status</strong>
-                  <p className="muted">{resendConfigured ? 'Configured in environment variables.' : 'Not fully configured yet. Add RESEND_API_KEY and RESEND_FROM_EMAIL.'}</p>
-                </div>
                 <button className="btn primary" type="submit">Create Competition + 5 Judge Slots</button>
               </form>
             </section>
@@ -137,33 +118,10 @@ export default async function AdminPage({ searchParams }: { searchParams?: Searc
                       <strong>{competition.status}</strong>
                     </div>
                   </div>
-                  <label className="field">
-                    <span>Notification email</span>
-                    <input className="input" name="notificationEmail" type="email" defaultValue={competition.notification_email ?? ''} placeholder="admin@example.com" />
-                  </label>
-                  <label className="field">
-                    <span>Backup notification email</span>
-                    <input className="input" name="backupNotificationEmail" type="email" defaultValue={competition.backup_notification_email ?? ''} placeholder="optional@example.com" />
-                  </label>
-                  <label className="field checkbox-field full">
-                    <span className="checkbox-line">
-                      <input name="emailNotificationsEnabled" type="checkbox" defaultChecked={competition.email_notifications_enabled} />
-                      <span>Enable Resend email notifications for this competition</span>
-                    </span>
-                  </label>
                   <div className="full toolbar">
                     <button className="btn primary" type="submit">Save Competition Settings</button>
                   </div>
                 </form>
-                <div className="card notice-card" style={{ marginTop: 12 }}>
-                  <strong>Notification delivery</strong>
-                  <p className="muted">
-                    {competition.email_notifications_enabled ? 'Enabled' : 'Disabled'} · Primary: {competition.notification_email || 'Not set'} · Backup: {competition.backup_notification_email || 'Not set'}
-                  </p>
-                  <p className="muted">
-                    Resend environment: {resendConfigured ? 'configured' : 'missing RESEND_API_KEY or RESEND_FROM_EMAIL'}
-                  </p>
-                </div>
                 <form className="toolbar status-toolbar" action={updateCompetitionStatusAction}>
                   <input type="hidden" name="competitionId" value={competition.id} />
                   <select className="select" name="status" defaultValue={competition.status}>
@@ -291,7 +249,6 @@ export default async function AdminPage({ searchParams }: { searchParams?: Searc
                               <input type="hidden" name="competitionId" value={competition.id} />
                               <input type="hidden" name="entryId" value={entry.id} />
                               <button className="btn primary moderation-btn" type="submit">✓ Approve & Send to Queue</button>
-                              <p className="muted" style={{ margin: '6px 0 0', fontSize: '.82rem' }}>Entrant will be emailed an acceptance notice.</p>
                             </form>
                           )}
                           {!isRejected && (
@@ -299,7 +256,7 @@ export default async function AdminPage({ searchParams }: { searchParams?: Searc
                               <input type="hidden" name="competitionId" value={competition.id} />
                               <input type="hidden" name="entryId" value={entry.id} />
                               <label className="field">
-                                <span>Rejection comment (required, sent to entrant)</span>
+                                <span>Rejection comment (required, kept on record)</span>
                                 <textarea
                                   className="textarea"
                                   name="rejectionReason"
@@ -310,7 +267,7 @@ export default async function AdminPage({ searchParams }: { searchParams?: Searc
                                   rows={3}
                                 />
                               </label>
-                              <button className="btn danger moderation-btn" type="submit">✕ Reject & Email Entrant</button>
+                              <button className="btn danger moderation-btn" type="submit">✕ Reject</button>
                             </form>
                           )}
                         </div>
