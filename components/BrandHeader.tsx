@@ -11,10 +11,10 @@ export function BrandHeader() {
           <p className="subhead">Presented by {BRAND.presentedBy} · YouTube-only competition intake, judging, and livestream playback.</p>
           <p className="muted">Public entry submission stays clean. Judge and admin tools appear only when those workflows are entered.</p>
           <div className="btn-row" style={{ marginTop: 22 }}>
-            <a className="btn primary" href="#submit">Submit Entry</a>
-            <a className="btn secondary" href="#judge">Judge Portal</a>
-            <a className="btn secondary" href={BRAND.merchUrl} target="_blank">THUG Merch Shop</a>
-            <a className="btn coffee" href={BRAND.coffeeUrl} target="_blank">Support on Buy Me a Coffee</a>
+            <a className="btn primary" href="/submit">Submit Entry</a>
+            <a className="btn secondary" href="/judge">Judge Portal</a>
+            <a className="btn secondary" href={BRAND.merchUrl} target="_blank" rel="noopener noreferrer">THUG Merch Shop</a>
+            <a className="btn coffee" href={BRAND.coffeeUrl} target="_blank" rel="noopener noreferrer">Support on Buy Me a Coffee</a>
           </div>
         </div>
       </div>
