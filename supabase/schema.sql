@@ -54,6 +54,7 @@ create table judge_slots (
 create table entries (
   id uuid primary key default gen_random_uuid(),
   competition_id uuid not null references competitions(id) on delete cascade,
+  user_id uuid references auth.users(id) on delete set null,
   entrant_name text not null,
   entrant_email text not null,
   title text not null,
@@ -69,6 +70,7 @@ create table entries (
   created_at timestamptz not null default now(),
   approved_at timestamptz null
 );
+create index if not exists idx_entries_user_id on entries (user_id);
 create index if not exists idx_entries_status_token on entries (status_token);
 
 alter table competitions

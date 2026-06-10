@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 
 import { extractYouTubeId } from '@/lib/youtube';
+import { getAuthenticatedUser } from '@/lib/auth-server';
 import { clearAdminSession, clearJudgeSession, getJudgeSession, isAdminAuthenticated, setAdminSession, setJudgeSession } from '@/lib/session';
 import { getActiveCompetitionBundle, getApprovedEntries, getCurrentPlaybackEntry, getLeaderboard } from '@/lib/server-data';
 import { getSupabaseAdmin, isSupabaseConfigured } from '@/lib/server-supabase';
@@ -111,19 +112,24 @@ export async function createInitialCompetitionAction(formData: FormData) {
 }
 
 export async function submitEntryAction(formData: FormData) {
+  const user = await getAuthenticatedUser();
+  if (!user) {
+    redirect('/login?next=/submit');
+  }
+
   const competitionId = `${formData.get('competitionId') || ''}`.trim();
   const entrantName = `${formData.get('entrantName') || ''}`.trim();
-  const entrantEmail = `${formData.get('entrantEmail') || ''}`.trim();
   const title = `${formData.get('title') || ''}`.trim();
   const youtubeUrl = `${formData.get('youtubeUrl') || ''}`.trim();
   const notes = `${formData.get('notes') || ''}`.trim();
   const consent = formData.get('consent');
+  const entrantEmail = user.email ?? '';
 
   if (!competitionId) {
     redirect(routeWithMessage('/submit', 'error', 'No active competition is available for submissions.'));
   }
 
-  if (!entrantName || !entrantEmail || !title || !youtubeUrl || !consent) {
+  if (!entrantName || !title || !youtubeUrl || !consent) {
     redirect(routeWithMessage('/submit', 'error', 'Please complete all required fields and confirm consent.'));
   }
 
@@ -148,6 +154,7 @@ export async function submitEntryAction(formData: FormData) {
 
   const { error } = await supabase.from('entries').insert({
     competition_id: competitionId,
+    user_id: user.id,
     entrant_name: entrantName,
     entrant_email: entrantEmail,
     title,
@@ -163,10 +170,11 @@ export async function submitEntryAction(formData: FormData) {
     redirect(routeWithMessage('/submit', 'error', 'Could not save the entry. Please try again.'));
   }
 
-  await logAudit('entry_submitted', 'entries', { title, entrantEmail, youtubeUrl }, competitionId);
+  await logAudit('entry_submitted', 'entries', { title, entrantEmail, youtubeUrl, userId: user.id }, competitionId);
   revalidatePath('/submit');
   revalidatePath('/admin');
-  redirect(`/submit?success=${encodeURIComponent('Entry submitted. Save your private status link below to check approval.')}&token=${encodeURIComponent(statusToken)}`);
+  revalidatePath('/my-entries');
+  redirect(`/my-entries?success=${encodeURIComponent('Entry submitted and saved to your account.')}`);
 }
 
 export async function adminLoginAction(formData: FormData) {

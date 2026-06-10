@@ -1,6 +1,10 @@
+import { redirect } from 'next/navigation';
+
+import { AuthBar } from '@/components/AuthBar';
 import { BrandHeader } from '@/components/BrandHeader';
 import { SiteNav } from '@/components/SiteNav';
 import { submitEntryAction } from '@/app/actions';
+import { getAuthenticatedUser } from '@/lib/auth-server';
 import { getActiveCompetitionBundle } from '@/lib/server-data';
 
 export const dynamic = 'force-dynamic';
@@ -12,18 +16,23 @@ function pickMessage(value?: string | string[]) {
 }
 
 export default async function SubmitPage({ searchParams }: { searchParams?: SearchParams }) {
+  const user = await getAuthenticatedUser();
+  if (!user) {
+    redirect('/login?next=/submit');
+  }
+
   const params = (await searchParams) ?? {};
   const bundle = await getActiveCompetitionBundle();
   const error = pickMessage(params.error);
   const success = pickMessage(params.success);
-  const token = pickMessage(params.token);
   const competition = bundle.competition;
   const submissionsOpen = competition?.status === 'Submissions Open';
-  const statusPath = token ? `/status/${token}` : null;
+  const defaultName = user.email?.split('@')[0] ?? '';
 
   return (
     <main className="page-shell page-stack">
-      <SiteNav mutedText="Private intake · YouTube-only submissions" />
+      <SiteNav mutedText="Private intake · account required" />
+      <AuthBar />
       <BrandHeader />
 
       <section className="grid">
@@ -33,14 +42,14 @@ export default async function SubmitPage({ searchParams }: { searchParams?: Sear
             <span className="tag tag-action">Action required</span>
           </div>
           <p className="muted">
-            Your YouTube link is saved as a pending entry. The admin verifies playback and approves or rejects it.
-            You will receive a private status link after submitting so you can check your entry's status anytime.
+            Your YouTube link is saved as a pending entry tied to your account. The admin verifies playback and
+            approves or rejects it. Track status anytime under <a className="inline-link" href="/my-entries">My Entries</a>.
           </p>
 
           {!bundle.configured && (
             <div className="card notice-card">
               <strong>Setup required</strong>
-              <p className="muted">Add your Supabase environment variables before live submissions can be stored.</p>
+              <p className="muted">Supabase environment variables are not configured.</p>
             </div>
           )}
 
@@ -51,35 +60,18 @@ export default async function SubmitPage({ searchParams }: { searchParams?: Sear
             </div>
           )}
 
-          {success && (
-            <div className="card success-card">
-              <strong>Success</strong>
-              <p className="muted">{success}</p>
-              {statusPath && (
-                <>
-                  <p className="muted" style={{ marginTop: 10 }}>Save this private link to check your entry status:</p>
-                  <div className="status-link-row">
-                    <code className="status-link-code">{statusPath}</code>
-                    <a className="btn secondary" href={statusPath}>Open Status Page</a>
-                  </div>
-                  <p className="muted" style={{ marginTop: 8, fontSize: '.8rem' }}>
-                    Bookmark this link. Anyone with this link can see your entry status. Do not share it publicly.
-                  </p>
-                </>
-              )}
-            </div>
-          )}
+          {success && <div className="card success-card"><strong>Success</strong><p className="muted">{success}</p></div>}
           {error && <div className="card error-card"><strong>Notice</strong><p className="muted">{error}</p></div>}
 
           <form className="form" action={submitEntryAction}>
             <input type="hidden" name="competitionId" value={competition?.id ?? ''} />
             <label className="field">
               <span>Entrant name</span>
-              <input className="input" name="entrantName" placeholder="Pilot / creator name" required />
+              <input className="input" name="entrantName" defaultValue={defaultName} placeholder="Pilot / creator name" required />
             </label>
             <label className="field">
-              <span>Email</span>
-              <input className="input" name="entrantEmail" type="email" placeholder="name@example.com" required />
+              <span>Account email</span>
+              <input className="input" value={user.email ?? ''} readOnly />
             </label>
             <label className="field full">
               <span>Entry title</span>
@@ -112,10 +104,10 @@ export default async function SubmitPage({ searchParams }: { searchParams?: Sear
             <h2>Entry Rules</h2>
           </div>
           <div className="list">
-            <div className="card"><strong>YouTube only</strong><p className="muted">No direct uploads, Instagram, or TikTok in this build.</p></div>
+            <div className="card"><strong>YouTube only</strong><p className="muted">No direct uploads, Instagram, or TikTok.</p></div>
             <div className="card"><strong>Embeddable playback required</strong><p className="muted">Private, age-restricted, or embed-disabled videos will be rejected.</p></div>
+            <div className="card"><strong>Account-bound</strong><p className="muted">Only your account can see your entries. Nothing public anywhere on this site.</p></div>
             <div className="card"><strong>Admin moderation</strong><p className="muted">Every entry is reviewed before it appears in judge and OBS playback queues.</p></div>
-            <div className="card"><strong>Private status link</strong><p className="muted">After submitting you get a personal link to check approval status. Nothing about your entry is shown publicly.</p></div>
           </div>
         </aside>
       </section>

@@ -3,7 +3,7 @@ import Link from 'next/link';
 const links = [
   { href: '/', label: 'Home' },
   { href: '/submit', label: 'Submit Entry' },
-  { href: '/entries', label: 'My Entry' },
+  { href: '/my-entries', label: 'My Entries' },
   { href: '/judge', label: 'Judge Portal' },
   { href: '/admin', label: 'Admin' },
   { href: '/playback', label: 'OBS Playback' }
