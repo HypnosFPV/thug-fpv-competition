@@ -5,6 +5,8 @@ import { getActiveCompetitionBundle, getApprovedEntries, getCurrentPlaybackEntry
 import { getYouTubeEmbedUrl } from '@/lib/youtube';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+export const fetchCache = 'force-no-store';
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
@@ -42,7 +44,19 @@ export default async function PlaybackPage({ searchParams }: { searchParams?: Se
         {error && <div className="card error-card"><strong>Notice</strong><p className="muted">{error}</p></div>}
 
         {!competition && <p className="muted">No active competition found.</p>}
-        {competition && !currentEntry && <p className="muted">No approved playback entry has been selected yet.</p>}
+        {competition && !currentEntry && (
+          <div className="card notice-card">
+            <strong>Queue is empty</strong>
+            <p className="muted">
+              Approved entries found: {approvedEntries.length}. Competition status: {competition.status}.
+            </p>
+            <p className="muted">
+              {approvedEntries.length === 0
+                ? 'No entries have moderation status "Approved" yet. Go to /admin, set status to Approved, and Save.'
+                : 'Approved entries exist but no current playback selected. Click "Send to /playback" in the admin queue panel.'}
+            </p>
+          </div>
+        )}
         {competition && currentEntry && (
           <>
             <div className="card notice-card" style={{ marginBottom: 12 }}>
