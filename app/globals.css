@@ -183,9 +183,19 @@ select option {
 .queue-row-title { color: var(--text); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .moderation-card { display: flex; flex-direction: column; gap: 10px; }
 .moderation-card.is-approved { border-color: rgba(46, 200, 90, 0.45); background: rgba(46, 200, 90, 0.06); }
-.moderation-card.is-rejected { border-color: rgba(255, 59, 59, 0.45); background: rgba(255, 59, 59, 0.06); opacity: 0.7; }
-.moderation-actions { gap: 12px; }
-.moderation-actions .btn { min-width: 220px; font-size: 1rem; padding: 14px 18px; }
+.moderation-card.is-rejected { border-color: rgba(255, 59, 59, 0.45); background: rgba(255, 59, 59, 0.06); opacity: 0.75; }
+.moderation-actions-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 6px;
+}
+.moderation-actions-grid form { display: flex; flex-direction: column; gap: 8px; }
+.moderation-btn { font-size: 1rem; padding: 14px 18px; width: 100%; }
+.reject-form .textarea { min-height: 90px; }
+@media (max-width: 720px) {
+  .moderation-actions-grid { grid-template-columns: 1fr; }
+}
 .status-inline { display: flex; align-items: center; min-height: 48px; }
 .inline-link { text-decoration: underline; }
 .full-width-btn { width: 100%; justify-content: flex-start; }

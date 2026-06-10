@@ -285,19 +285,32 @@ export default async function AdminPage({ searchParams }: { searchParams?: Searc
                             ? 'In playback queue. Click Reject to remove it.'
                             : 'Press play above to verify the embed works, then choose:'}
                         </p>
-                        <div className="toolbar moderation-actions">
+                        <div className="moderation-actions-grid">
                           {!isApproved && (
-                            <form action={approveEntryAction}>
+                            <form action={approveEntryAction} className="approve-form">
                               <input type="hidden" name="competitionId" value={competition.id} />
                               <input type="hidden" name="entryId" value={entry.id} />
-                              <button className="btn primary" type="submit">✓ Approve & Send to Queue</button>
+                              <button className="btn primary moderation-btn" type="submit">✓ Approve & Send to Queue</button>
+                              <p className="muted" style={{ margin: '6px 0 0', fontSize: '.82rem' }}>Entrant will be emailed an acceptance notice.</p>
                             </form>
                           )}
                           {!isRejected && (
-                            <form action={rejectEntryAction}>
+                            <form action={rejectEntryAction} className="reject-form">
                               <input type="hidden" name="competitionId" value={competition.id} />
                               <input type="hidden" name="entryId" value={entry.id} />
-                              <button className="btn danger" type="submit">✕ Reject</button>
+                              <label className="field">
+                                <span>Rejection comment (required, sent to entrant)</span>
+                                <textarea
+                                  className="textarea"
+                                  name="rejectionReason"
+                                  placeholder="e.g. Video is private, age-restricted, embedding disabled, or does not meet contest rules."
+                                  defaultValue={entry.notes ?? ''}
+                                  required
+                                  minLength={5}
+                                  rows={3}
+                                />
+                              </label>
+                              <button className="btn danger moderation-btn" type="submit">✕ Reject & Email Entrant</button>
                             </form>
                           )}
                         </div>
