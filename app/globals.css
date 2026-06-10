@@ -136,6 +136,11 @@ button, input, textarea, select { font: inherit; }
   color: var(--text);
   padding: 12px 14px;
 }
+select.select option,
+select option {
+  background-color: #14141c;
+  color: var(--text);
+}
 .textarea { min-height: 110px; resize: vertical; }
 .checkbox-field { align-items: start; }
 .checkbox-line { display: flex; align-items: flex-start; gap: 10px; }
