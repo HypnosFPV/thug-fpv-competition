@@ -29,6 +29,14 @@ export default async function SubmitPage({ searchParams }: { searchParams?: Sear
   const submissionsOpen = competition?.status === 'Submissions Open';
   const defaultName = user.email?.split('@')[0] ?? '';
 
+  // Check if user already has an entry for this competition
+  const existingEntry = competition
+    ? bundle.entries.find((e) => e.userId === user.id)
+    : null;
+  if (existingEntry) {
+    redirect('/my-entries?error=' + encodeURIComponent('You already have an entry for this competition. Use Replace this Entry below while submissions are open.'));
+  }
+
   return (
     <main className="page-shell page-stack">
       <SiteNav mutedText="Private intake · account required" />

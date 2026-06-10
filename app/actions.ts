@@ -150,6 +150,18 @@ export async function submitEntryAction(formData: FormData) {
     redirect(routeWithMessage('/submit', 'error', 'Submissions are not open right now.'));
   }
 
+  // Block duplicate: one entry per user per competition
+  const { data: existing } = await supabase
+    .from('entries')
+    .select('id')
+    .eq('competition_id', competitionId)
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  if (existing) {
+    redirect(routeWithMessage('/my-entries', 'error', 'You already have an entry for this competition. Use Replace Entry while submissions are open.'));
+  }
+
   const statusToken = crypto.randomBytes(18).toString('base64url');
 
   const { error } = await supabase.from('entries').insert({
@@ -175,6 +187,89 @@ export async function submitEntryAction(formData: FormData) {
   revalidatePath('/admin');
   revalidatePath('/my-entries');
   redirect(`/my-entries?success=${encodeURIComponent('Entry submitted and saved to your account.')}`);
+}
+
+export async function replaceMyEntryAction(formData: FormData) {
+  const user = await getAuthenticatedUser();
+  if (!user) {
+    redirect('/login?next=/my-entries');
+  }
+
+  const entryId = `${formData.get('entryId') || ''}`.trim();
+  const title = `${formData.get('title') || ''}`.trim();
+  const youtubeUrl = `${formData.get('youtubeUrl') || ''}`.trim();
+  const notes = `${formData.get('notes') || ''}`.trim();
+  const consent = formData.get('consent');
+
+  if (!entryId || !title || !youtubeUrl || !consent) {
+    redirect(routeWithMessage('/my-entries', 'error', 'Please complete all required fields and confirm consent.'));
+  }
+
+  const videoId = extractYouTubeId(youtubeUrl);
+  if (!videoId) {
+    redirect(routeWithMessage('/my-entries', 'error', 'Please provide a valid YouTube URL.'));
+  }
+
+  const supabase = requireSupabaseOrRedirect('/my-entries');
+
+  const { data: entry } = await supabase
+    .from('entries')
+    .select('id, competition_id, user_id, competitions(status)')
+    .eq('id', entryId)
+    .maybeSingle<{ id: string; competition_id: string; user_id: string | null; competitions: { status: string } | { status: string }[] | null }>();
+
+  if (!entry || entry.user_id !== user.id) {
+    redirect(routeWithMessage('/my-entries', 'error', 'Entry not found.'));
+  }
+
+  const competitionStatus = Array.isArray(entry.competitions)
+    ? entry.competitions[0]?.status
+    : entry.competitions?.status;
+
+  if (competitionStatus !== 'Submissions Open') {
+    redirect(routeWithMessage('/my-entries', 'error', 'Submissions are closed. Replacement is no longer allowed.'));
+  }
+
+  const { error } = await supabase
+    .from('entries')
+    .update({
+      title,
+      youtube_url: youtubeUrl,
+      youtube_video_id: videoId,
+      notes: notes || null,
+      moderation_status: 'Pending',
+      playback_verified: false,
+      moderation_notes: null,
+      running_order: null,
+      approved_at: null
+    })
+    .eq('id', entryId)
+    .eq('user_id', user.id);
+
+  if (error) {
+    redirect(routeWithMessage('/my-entries', 'error', 'Unable to replace the entry.'));
+  }
+
+  // If this entry was the current playback, clear it
+  const { data: comp } = await supabase
+    .from('competitions')
+    .select('current_playback_entry_id')
+    .eq('id', entry.competition_id)
+    .maybeSingle();
+
+  if (comp?.current_playback_entry_id === entryId) {
+    await supabase
+      .from('competitions')
+      .update({ current_playback_entry_id: null, updated_at: new Date().toISOString() })
+      .eq('id', entry.competition_id);
+  }
+
+  await logAudit('entry_replaced', 'entries', { entryId, title, youtubeUrl, userId: user.id }, entry.competition_id);
+  revalidatePath('/my-entries');
+  revalidatePath('/admin');
+  revalidatePath('/playback');
+  revalidatePath('/judge');
+  redirect(`/my-entries?success=${encodeURIComponent('Entry replaced and re-submitted for admin re-verification.')}`);
 }
 
 export async function adminLoginAction(formData: FormData) {

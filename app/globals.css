@@ -181,6 +181,10 @@ select option {
 .queue-row-meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .queue-row-order { font-weight: 800; color: var(--purple-2); min-width: 28px; }
 .queue-row-title { color: var(--text); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.replace-details summary { list-style: none; cursor: pointer; display: inline-flex; }
+.replace-details summary::-webkit-details-marker { display: none; }
+.replace-summary { padding: 8px 14px; font-size: .9rem; }
+.replace-details[open] .replace-summary { background: rgba(139,61,255,0.15); border-color: rgba(139,61,255,0.4); }
 .auth-bar {
   display: flex;
   flex-wrap: wrap;

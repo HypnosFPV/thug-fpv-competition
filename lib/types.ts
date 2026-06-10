@@ -33,6 +33,7 @@ export interface EntryRecord {
   runningOrder?: number | null;
   statusToken?: string | null;
   moderationNotes?: string | null;
+  userId?: string | null;
 }
 
 export interface ScoreRecord {

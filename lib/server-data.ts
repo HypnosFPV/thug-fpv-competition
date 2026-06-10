@@ -49,7 +49,8 @@ function mapEntry(row: any): EntryRecord {
     moderationStatus: row.moderation_status,
     runningOrder: row.running_order,
     statusToken: row.status_token ?? null,
-    moderationNotes: row.moderation_notes ?? null
+    moderationNotes: row.moderation_notes ?? null,
+    userId: row.user_id ?? null
   };
 }
 
