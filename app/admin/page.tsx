@@ -177,22 +177,39 @@ export default async function AdminPage({ searchParams }: { searchParams?: Searc
               <aside className="panel span-4">
                 <div className="section-head">
                   <h2>Playback Queue</h2>
-                  <span className="tag">OBS</span>
+                  <span className={`tag ${approvedEntries.length ? 'tag-live' : ''}`}>
+                    {approvedEntries.length ? `${approvedEntries.length} in queue` : 'Empty'}
+                  </span>
                 </div>
-                <div className="card">
-                  <strong>Current</strong>
-                  <p className="muted">{currentPlayback ? currentPlayback.title : 'No playback entry selected yet.'}</p>
+                <div className={`card ${currentPlayback ? 'queue-now-card' : 'notice-card'}`}>
+                  <strong>{currentPlayback ? 'Now on /playback' : 'No playback entry selected yet'}</strong>
+                  <p className="muted">
+                    {currentPlayback
+                      ? `${currentPlayback.runningOrder ? `#${currentPlayback.runningOrder} · ` : ''}${currentPlayback.title}`
+                      : 'Approve an entry to auto-add it to the queue.'}
+                  </p>
                 </div>
                 <div className="list" style={{ marginTop: 12 }}>
-                  {approvedEntries.map((entry) => (
-                    <form key={entry.id} action={setPlaybackEntryAction}>
-                      <input type="hidden" name="competitionId" value={competition.id} />
-                      <input type="hidden" name="entryId" value={entry.id} />
-                      <button className="btn secondary full-width-btn" type="submit">
-                        Set Playback: {entry.runningOrder ? `#${entry.runningOrder} ` : ''}{entry.title}
-                      </button>
-                    </form>
-                  ))}
+                  {approvedEntries.length === 0 && (
+                    <p className="muted">No approved entries yet. Approved entries appear here automatically.</p>
+                  )}
+                  {approvedEntries.map((entry) => {
+                    const isCurrent = currentPlayback?.id === entry.id;
+                    return (
+                      <form key={entry.id} action={setPlaybackEntryAction} className={`queue-row ${isCurrent ? 'queue-row-current' : ''}`}>
+                        <input type="hidden" name="competitionId" value={competition.id} />
+                        <input type="hidden" name="entryId" value={entry.id} />
+                        <div className="queue-row-meta">
+                          <span className="queue-row-order">{entry.runningOrder ? `#${entry.runningOrder}` : '—'}</span>
+                          <span className="queue-row-title">{entry.title}</span>
+                          {isCurrent && <span className="tag tag-live">LIVE</span>}
+                        </div>
+                        <button className="btn secondary full-width-btn" type="submit" disabled={isCurrent}>
+                          {isCurrent ? 'Currently Playing' : 'Send to /playback'}
+                        </button>
+                      </form>
+                    );
+                  })}
                 </div>
               </aside>
 

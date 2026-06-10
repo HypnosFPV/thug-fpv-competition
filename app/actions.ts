@@ -423,10 +423,25 @@ export async function moderateEntryAction(formData: FormData) {
     redirect(routeWithMessage('/admin', 'error', 'Entry moderation values are incomplete.'));
   }
 
-  const runningOrder = runningOrderRaw ? Number(runningOrderRaw) : null;
+  const supabase = requireSupabaseOrRedirect('/admin');
+
+  let runningOrder = runningOrderRaw ? Number(runningOrderRaw) : null;
   const approvedAt = moderationStatus === 'Approved' ? new Date().toISOString() : null;
 
-  const supabase = requireSupabaseOrRedirect('/admin');
+  // Auto-assign running order when approving an entry that doesn't have one
+  if (moderationStatus === 'Approved' && !Number.isFinite(runningOrder as number)) {
+    const { data: maxRow } = await supabase
+      .from('entries')
+      .select('running_order')
+      .eq('competition_id', competitionId)
+      .eq('moderation_status', 'Approved')
+      .not('running_order', 'is', null)
+      .order('running_order', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    runningOrder = (maxRow?.running_order ?? 0) + 1;
+  }
+
   const { error } = await supabase
     .from('entries')
     .update({
@@ -443,12 +458,37 @@ export async function moderateEntryAction(formData: FormData) {
     redirect(routeWithMessage('/admin', 'error', 'Unable to update the entry.'));
   }
 
-  await logAudit('entry_moderated', 'entries', { entryId, moderationStatus, playbackVerified, runningOrder }, competitionId);
+  // If this is the first approved entry, auto-set as current playback
+  let autoSetPlayback = false;
+  if (moderationStatus === 'Approved') {
+    const { data: comp } = await supabase
+      .from('competitions')
+      .select('current_playback_entry_id')
+      .eq('id', competitionId)
+      .maybeSingle();
+
+    if (!comp?.current_playback_entry_id) {
+      await supabase
+        .from('competitions')
+        .update({ current_playback_entry_id: entryId, updated_at: new Date().toISOString() })
+        .eq('id', competitionId);
+      autoSetPlayback = true;
+    }
+  }
+
+  await logAudit('entry_moderated', 'entries', { entryId, moderationStatus, playbackVerified, runningOrder, autoSetPlayback }, competitionId);
   revalidatePath('/submit');
   revalidatePath('/judge');
   revalidatePath('/admin');
   revalidatePath('/playback');
-  redirect(routeWithMessage('/admin', 'success', 'Entry updated.'));
+
+  const successMessage = moderationStatus === 'Approved'
+    ? autoSetPlayback
+      ? `Approved and added to playback queue as #${runningOrder}. Now playing on /playback.`
+      : `Approved and added to playback queue as #${runningOrder}.`
+    : 'Entry updated.';
+
+  redirect(routeWithMessage('/admin', 'success', successMessage));
 }
 
 export async function setPlaybackEntryAction(formData: FormData) {

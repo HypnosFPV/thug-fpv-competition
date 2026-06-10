@@ -156,6 +156,31 @@ select option {
 .entry-grid { grid-template-columns: repeat(2, minmax(0,1fr)); align-items: start; gap: 12px; }
 .entry-grid .full { grid-column: 1 / -1; }
 .entry-meta { display: flex; flex-direction: column; gap: 4px; }
+.tag-live {
+  background: rgba(46, 200, 90, 0.18);
+  border-color: rgba(46, 200, 90, 0.55);
+  color: #b6f5c8;
+}
+.queue-now-card {
+  background: rgba(46, 200, 90, 0.10);
+  border: 1px solid rgba(46, 200, 90, 0.45);
+  box-shadow: 0 0 16px rgba(46, 200, 90, 0.18);
+}
+.queue-row {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+}
+.queue-row-current {
+  background: rgba(46, 200, 90, 0.08);
+  border-color: rgba(46, 200, 90, 0.45);
+}
+.queue-row-meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.queue-row-order { font-weight: 800; color: var(--purple-2); min-width: 28px; }
+.queue-row-title { color: var(--text); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .status-inline { display: flex; align-items: center; min-height: 48px; }
 .inline-link { text-decoration: underline; }
 .full-width-btn { width: 100%; justify-content: flex-start; }
