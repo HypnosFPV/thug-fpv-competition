@@ -491,6 +491,119 @@ export async function moderateEntryAction(formData: FormData) {
   redirect(routeWithMessage('/admin', 'success', successMessage));
 }
 
+export async function approveEntryAction(formData: FormData) {
+  await requireAdmin();
+  const competitionId = `${formData.get('competitionId') || ''}`.trim();
+  const entryId = `${formData.get('entryId') || ''}`.trim();
+
+  if (!competitionId || !entryId) {
+    redirect(routeWithMessage('/admin', 'error', 'Entry information missing.'));
+  }
+
+  const supabase = requireSupabaseOrRedirect('/admin');
+
+  // Get next running order
+  const { data: maxRow } = await supabase
+    .from('entries')
+    .select('running_order')
+    .eq('competition_id', competitionId)
+    .eq('moderation_status', 'Approved')
+    .not('running_order', 'is', null)
+    .order('running_order', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const nextOrder = (maxRow?.running_order ?? 0) + 1;
+
+  const { error } = await supabase
+    .from('entries')
+    .update({
+      moderation_status: 'Approved',
+      playback_verified: true,
+      running_order: nextOrder,
+      approved_at: new Date().toISOString()
+    })
+    .eq('id', entryId)
+    .eq('competition_id', competitionId);
+
+  if (error) {
+    redirect(routeWithMessage('/admin', 'error', 'Unable to approve the entry.'));
+  }
+
+  // Auto-set as current playback if none
+  let autoSetPlayback = false;
+  const { data: comp } = await supabase
+    .from('competitions')
+    .select('current_playback_entry_id')
+    .eq('id', competitionId)
+    .maybeSingle();
+
+  if (!comp?.current_playback_entry_id) {
+    await supabase
+      .from('competitions')
+      .update({ current_playback_entry_id: entryId, updated_at: new Date().toISOString() })
+      .eq('id', competitionId);
+    autoSetPlayback = true;
+  }
+
+  await logAudit('entry_approved', 'entries', { entryId, runningOrder: nextOrder, autoSetPlayback }, competitionId);
+  revalidatePath('/submit');
+  revalidatePath('/judge');
+  revalidatePath('/admin');
+  revalidatePath('/playback');
+
+  redirect(routeWithMessage('/admin', 'success', autoSetPlayback
+    ? `Approved as #${nextOrder} and now playing on /playback.`
+    : `Approved as #${nextOrder} and added to playback queue.`));
+}
+
+export async function rejectEntryAction(formData: FormData) {
+  await requireAdmin();
+  const competitionId = `${formData.get('competitionId') || ''}`.trim();
+  const entryId = `${formData.get('entryId') || ''}`.trim();
+
+  if (!competitionId || !entryId) {
+    redirect(routeWithMessage('/admin', 'error', 'Entry information missing.'));
+  }
+
+  const supabase = requireSupabaseOrRedirect('/admin');
+  const { error } = await supabase
+    .from('entries')
+    .update({
+      moderation_status: 'Rejected',
+      playback_verified: false,
+      running_order: null,
+      approved_at: null
+    })
+    .eq('id', entryId)
+    .eq('competition_id', competitionId);
+
+  if (error) {
+    redirect(routeWithMessage('/admin', 'error', 'Unable to reject the entry.'));
+  }
+
+  // If this was the current playback entry, clear it
+  const { data: comp } = await supabase
+    .from('competitions')
+    .select('current_playback_entry_id')
+    .eq('id', competitionId)
+    .maybeSingle();
+
+  if (comp?.current_playback_entry_id === entryId) {
+    await supabase
+      .from('competitions')
+      .update({ current_playback_entry_id: null, updated_at: new Date().toISOString() })
+      .eq('id', competitionId);
+  }
+
+  await logAudit('entry_rejected', 'entries', { entryId }, competitionId);
+  revalidatePath('/submit');
+  revalidatePath('/judge');
+  revalidatePath('/admin');
+  revalidatePath('/playback');
+
+  redirect(routeWithMessage('/admin', 'success', 'Entry rejected and removed from queue.'));
+}
+
 export async function setPlaybackEntryAction(formData: FormData) {
   await requireAdmin();
   const competitionId = `${formData.get('competitionId') || ''}`.trim();

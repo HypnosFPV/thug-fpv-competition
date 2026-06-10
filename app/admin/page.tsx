@@ -1,9 +1,10 @@
 import {
   adminLoginAction,
   adminLogoutAction,
+  approveEntryAction,
   archiveAndResetCompetitionAction,
   createInitialCompetitionAction,
-  moderateEntryAction,
+  rejectEntryAction,
   resetJudgePinsAction,
   setPlaybackEntryAction,
   updateCompetitionSettingsAction,
@@ -257,16 +258,21 @@ export default async function AdminPage({ searchParams }: { searchParams?: Searc
                   <span className="tag">Pending + approved</span>
                 </div>
                 <div className="list">
-                  {[...pendingEntries, ...approvedEntries].map((entry) => (
-                    <form key={entry.id} className="card entry-grid" action={moderateEntryAction}>
-                      <input type="hidden" name="competitionId" value={competition.id} />
-                      <input type="hidden" name="entryId" value={entry.id} />
-                      <div className="entry-meta full">
-                        <strong>{entry.title}</strong>
-                        <p className="muted">{entry.entrantName} · {entry.entrantEmail}</p>
-                        <a className="muted inline-link" href={entry.youtubeUrl} target="_blank" rel="noopener noreferrer">Open YouTube Link</a>
-                      </div>
-                      <div className="full">
+                  {[...pendingEntries, ...approvedEntries].map((entry) => {
+                    const isApproved = entry.moderationStatus === 'Approved';
+                    const isRejected = entry.moderationStatus === 'Rejected';
+                    return (
+                      <div key={entry.id} className={`card moderation-card ${isApproved ? 'is-approved' : isRejected ? 'is-rejected' : ''}`}>
+                        <div className="entry-meta">
+                          <div className="section-head" style={{ marginBottom: 4 }}>
+                            <strong>{entry.title}</strong>
+                            <span className={`tag ${isApproved ? 'tag-live' : isRejected ? 'tag-action' : ''}`}>
+                              {isApproved ? `APPROVED #${entry.runningOrder ?? '?'}` : entry.moderationStatus}
+                            </span>
+                          </div>
+                          <p className="muted">{entry.entrantName} · {entry.entrantEmail}</p>
+                          <a className="muted inline-link" href={entry.youtubeUrl} target="_blank" rel="noopener noreferrer">Open YouTube Link</a>
+                        </div>
                         <iframe
                           className="player"
                           src={getYouTubeEmbedUrl(entry.youtubeVideoId)}
@@ -274,34 +280,30 @@ export default async function AdminPage({ searchParams }: { searchParams?: Searc
                           allow="autoplay; encrypted-media; picture-in-picture"
                           allowFullScreen
                         />
+                        <p className="muted" style={{ margin: '12px 0 4px' }}>
+                          {isApproved
+                            ? 'In playback queue. Click Reject to remove it.'
+                            : 'Press play above to verify the embed works, then choose:'}
+                        </p>
+                        <div className="toolbar moderation-actions">
+                          {!isApproved && (
+                            <form action={approveEntryAction}>
+                              <input type="hidden" name="competitionId" value={competition.id} />
+                              <input type="hidden" name="entryId" value={entry.id} />
+                              <button className="btn primary" type="submit">✓ Approve & Send to Queue</button>
+                            </form>
+                          )}
+                          {!isRejected && (
+                            <form action={rejectEntryAction}>
+                              <input type="hidden" name="competitionId" value={competition.id} />
+                              <input type="hidden" name="entryId" value={entry.id} />
+                              <button className="btn danger" type="submit">✕ Reject</button>
+                            </form>
+                          )}
+                        </div>
                       </div>
-                      <label className="field">
-                        <span>Moderation status</span>
-                        <select className="select" name="moderationStatus" defaultValue={entry.moderationStatus}>
-                          <option value="Pending">Pending</option>
-                          <option value="Playback Verified">Playback Verified</option>
-                          <option value="Approved">Approved</option>
-                          <option value="Rejected">Rejected</option>
-                        </select>
-                      </label>
-                      <label className="field">
-                        <span>Playback verified</span>
-                        <select className="select" name="playbackVerified" defaultValue={entry.moderationStatus === 'Approved' || entry.moderationStatus === 'Playback Verified' ? 'true' : 'false'}>
-                          <option value="false">No</option>
-                          <option value="true">Yes</option>
-                        </select>
-                      </label>
-                      <label className="field">
-                        <span>Running order</span>
-                        <input className="input" name="runningOrder" type="number" min="1" defaultValue={entry.runningOrder ?? ''} />
-                      </label>
-                      <label className="field full">
-                        <span>Moderation notes</span>
-                        <input className="input" name="moderationNotes" placeholder="Why approved / rejected" />
-                      </label>
-                      <button className="btn primary" type="submit">Save Entry Update</button>
-                    </form>
-                  ))}
+                    );
+                  })}
                 </div>
               </section>
 
