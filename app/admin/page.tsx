@@ -14,6 +14,7 @@ import { SiteNav } from '@/components/SiteNav';
 import { COMPETITION_STATUSES } from '@/lib/constants';
 import { getActiveCompetitionBundle, getApprovedEntries, getCurrentPlaybackEntry, getLeaderboard, getPendingEntries } from '@/lib/server-data';
 import { isAdminAuthenticated } from '@/lib/session';
+import { getYouTubeEmbedUrl } from '@/lib/youtube';
 
 export const dynamic = 'force-dynamic';
 
@@ -243,10 +244,19 @@ export default async function AdminPage({ searchParams }: { searchParams?: Searc
                     <form key={entry.id} className="card entry-grid" action={moderateEntryAction}>
                       <input type="hidden" name="competitionId" value={competition.id} />
                       <input type="hidden" name="entryId" value={entry.id} />
-                      <div>
+                      <div className="entry-meta full">
                         <strong>{entry.title}</strong>
                         <p className="muted">{entry.entrantName} · {entry.entrantEmail}</p>
-                        <a className="muted inline-link" href={entry.youtubeUrl} target="_blank">Open YouTube Link</a>
+                        <a className="muted inline-link" href={entry.youtubeUrl} target="_blank" rel="noopener noreferrer">Open YouTube Link</a>
+                      </div>
+                      <div className="full">
+                        <iframe
+                          className="player"
+                          src={getYouTubeEmbedUrl(entry.youtubeVideoId)}
+                          title={`Preview: ${entry.title}`}
+                          allow="autoplay; encrypted-media; picture-in-picture"
+                          allowFullScreen
+                        />
                       </div>
                       <label className="field">
                         <span>Moderation status</span>
