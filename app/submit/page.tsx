@@ -25,10 +25,10 @@ export default async function SubmitPage({ searchParams }: { searchParams?: Sear
       <BrandHeader />
 
       <section className="grid">
-        <section className="panel span-8">
+        <section className="panel span-8 submit-highlight">
           <div className="section-head">
             <h2>Submit Your Entry</h2>
-            <span className="tag">Public page</span>
+            <span className="tag tag-action">Action required</span>
           </div>
           <p className="muted">
             Clean entrant flow only. Your YouTube link is saved as a pending entry, then the admin verifies

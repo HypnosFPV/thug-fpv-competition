@@ -162,6 +162,20 @@ select option {
 .link-card { transition: transform .18s ease, border-color .18s ease; }
 .link-card:hover { transform: translateY(-2px); border-color: rgba(189,103,255,0.35); }
 .player { aspect-ratio: 16/9; width: 100%; border: 0; border-radius: 18px; background: #000; }
+.submit-highlight {
+  border: 2px solid #ff3b3b;
+  box-shadow: 0 0 0 4px rgba(255, 59, 59, 0.15), 0 0 32px rgba(255, 59, 59, 0.35);
+  animation: submitPulse 2.4s ease-in-out infinite;
+}
+.tag-action {
+  background: rgba(255, 59, 59, 0.18);
+  border-color: rgba(255, 59, 59, 0.55);
+  color: #ffd2d2;
+}
+@keyframes submitPulse {
+  0%, 100% { box-shadow: 0 0 0 4px rgba(255, 59, 59, 0.15), 0 0 28px rgba(255, 59, 59, 0.28); }
+  50% { box-shadow: 0 0 0 4px rgba(255, 59, 59, 0.28), 0 0 44px rgba(255, 59, 59, 0.55); }
+}
 
 .footer {
   display: flex;
