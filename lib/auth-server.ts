@@ -1,7 +1,6 @@
 import 'server-only';
 
 import { cookies } from 'next/headers';
-import { createClient } from '@supabase/supabase-js';
 
 function decodeJwt(token: string): { sub?: string; email?: string; exp?: number } | null {
   try {
@@ -52,22 +51,4 @@ export async function getAuthenticatedUser(): Promise<AuthenticatedUser | null> 
   };
 }
 
-export async function getSupabaseForUser(): Promise<{ client: ReturnType<typeof createClient>; userId: string } | null> {
-  const token = await readAuthTokenFromCookies();
-  if (!token) return null;
 
-  const payload = decodeJwt(token);
-  if (!payload?.sub) return null;
-  if (payload.exp && payload.exp * 1000 < Date.now()) return null;
-
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !anonKey) return null;
-
-  const client = createClient(url, anonKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-    global: { headers: { Authorization: `Bearer ${token}` } }
-  });
-
-  return { client, userId: payload.sub };
-}
