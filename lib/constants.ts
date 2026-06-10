@@ -9,9 +9,9 @@ export const BRAND = {
 };
 
 export const GENSPARK_LOGOS = {
-  thug: 'https://www.genspark.ai/api/files/s/4PtaLF4f',
-  hypnos: 'https://www.genspark.ai/api/files/s/rqOckl4d',
-  nappy: 'https://www.genspark.ai/api/files/s/77gxXWMC'
+  thug: '/thug-logo.png',
+  hypnos: '/hypnos-fpv-logo.png',
+  nappy: '/nappy-fpv-logo.png'
 };
 
 export const COMPETITION_STATUSES = [
