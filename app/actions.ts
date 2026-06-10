@@ -212,11 +212,18 @@ export async function replaceMyEntryAction(formData: FormData) {
 
   const supabase = requireSupabaseOrRedirect('/my-entries');
 
-  const { data: entry } = await supabase
+  const { data: entryRaw } = await supabase
     .from('entries')
     .select('id, competition_id, user_id, competitions(status)')
     .eq('id', entryId)
-    .maybeSingle<{ id: string; competition_id: string; user_id: string | null; competitions: { status: string } | { status: string }[] | null }>();
+    .maybeSingle();
+
+  const entry = entryRaw as null | {
+    id: string;
+    competition_id: string;
+    user_id: string | null;
+    competitions: { status: string } | { status: string }[] | null;
+  };
 
   if (!entry || entry.user_id !== user.id) {
     redirect(routeWithMessage('/my-entries', 'error', 'Entry not found.'));

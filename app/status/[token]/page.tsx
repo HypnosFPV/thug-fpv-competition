@@ -60,11 +60,13 @@ export default async function EntryStatusPage({ params }: { params: RouteParams 
     );
   }
 
-  const { data, error } = await supabase
+  const { data: dataRaw, error } = await supabase
     .from('entries')
     .select('id, entrant_name, title, youtube_url, moderation_status, moderation_notes, running_order, created_at, approved_at, competitions(name, status)')
     .eq('status_token', token)
-    .maybeSingle<EntryStatusRow>();
+    .maybeSingle();
+
+  const data = dataRaw as EntryStatusRow | null;
 
   if (error || !data) {
     return (

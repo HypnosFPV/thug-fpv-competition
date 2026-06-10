@@ -27,7 +27,7 @@ export default async function SubmitPage({ searchParams }: { searchParams?: Sear
   const success = pickMessage(params.success);
   const competition = bundle.competition;
   const submissionsOpen = competition?.status === 'Submissions Open';
-  const defaultName = user.email?.split('@')[0] ?? '';
+  const defaultName = user.email ? user.email.split('@')[0] : '';
 
   // Check if user already has an entry for this competition
   const existingEntry = competition

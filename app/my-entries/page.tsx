@@ -66,12 +66,13 @@ export default async function MyEntriesPage({ searchParams }: { searchParams?: S
     );
   }
 
-  const { data, error: queryError } = await supabase
+  const { data: dataRaw, error: queryError } = await supabase
     .from('entries')
     .select('id, title, moderation_status, moderation_notes, running_order, youtube_url, notes, created_at, status_token, competition_id, competitions(name, status)')
     .eq('user_id', user.id)
-    .order('created_at', { ascending: false })
-    .returns<MyEntryRow[]>();
+    .order('created_at', { ascending: false });
+
+  const data = dataRaw as MyEntryRow[] | null;
 
   return (
     <main className="page-shell page-stack">
