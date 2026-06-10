@@ -26,15 +26,38 @@ function pickMessage(value?: string | string[]) {
   return Array.isArray(value) ? value[0] : value;
 }
 
+type ModerationFilter = 'pending' | 'approved' | 'rejected' | 'all';
+
+function parseFilter(value?: string | string[]): ModerationFilter {
+  const raw = Array.isArray(value) ? value[0] : value;
+  if (raw === 'approved' || raw === 'rejected' || raw === 'all') return raw;
+  return 'pending';
+}
+
 export default async function AdminPage({ searchParams }: { searchParams?: SearchParams }) {
   const params = (await searchParams) ?? {};
   const error = pickMessage(params.error);
   const success = pickMessage(params.success);
+  const filter = parseFilter(params.filter);
   const isAdmin = await isAdminAuthenticated();
   const bundle = await getActiveCompetitionBundle();
   const competition = bundle.competition;
   const pendingEntries = getPendingEntries(bundle.entries);
   const approvedEntries = getApprovedEntries(bundle.entries);
+  const rejectedEntries = bundle.entries.filter((e) => e.moderationStatus === 'Rejected');
+  const pendingOnly = bundle.entries.filter((e) => e.moderationStatus === 'Pending' || e.moderationStatus === 'Playback Verified');
+  const filteredEntries = (() => {
+    if (filter === 'approved') return approvedEntries;
+    if (filter === 'rejected') return rejectedEntries;
+    if (filter === 'all') return [...pendingOnly, ...approvedEntries, ...rejectedEntries];
+    return pendingOnly;
+  })();
+  const filterCounts = {
+    pending: pendingOnly.length,
+    approved: approvedEntries.length,
+    rejected: rejectedEntries.length,
+    all: bundle.entries.length
+  } as const;
   const leaderboard = getLeaderboard(bundle.entries, bundle.scores);
   const currentPlayback = getCurrentPlaybackEntry(bundle);
 
@@ -219,10 +242,19 @@ export default async function AdminPage({ searchParams }: { searchParams?: Searc
               <section className="panel span-8">
                 <div className="section-head">
                   <h2>Entry Moderation</h2>
-                  <span className="tag">Pending + approved</span>
+                  <span className="tag">Filter: {filter}</span>
                 </div>
-                <div className="list">
-                  {[...pendingEntries, ...approvedEntries].map((entry) => {
+                <div className="filter-toolbar">
+                  <a className={`btn ${filter === 'pending' ? 'primary' : 'secondary'}`} href="/admin?filter=pending">Pending ({filterCounts.pending})</a>
+                  <a className={`btn ${filter === 'approved' ? 'primary' : 'secondary'}`} href="/admin?filter=approved">Approved ({filterCounts.approved})</a>
+                  <a className={`btn ${filter === 'rejected' ? 'primary' : 'secondary'}`} href="/admin?filter=rejected">Rejected ({filterCounts.rejected})</a>
+                  <a className={`btn ${filter === 'all' ? 'primary' : 'secondary'}`} href="/admin?filter=all">All ({filterCounts.all})</a>
+                </div>
+                <div className="list" style={{ marginTop: 12 }}>
+                  {filteredEntries.length === 0 && (
+                    <p className="muted">No entries match this filter.</p>
+                  )}
+                  {filteredEntries.map((entry) => {
                     const isApproved = entry.moderationStatus === 'Approved';
                     const isRejected = entry.moderationStatus === 'Rejected';
                     return (
