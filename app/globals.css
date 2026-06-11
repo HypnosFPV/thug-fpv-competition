@@ -650,3 +650,178 @@ select option {
   border-radius: 6px;
   padding: 6px;
 }
+
+/* ============================================================
+   MOBILE RESPONSIVE OVERRIDES
+   ============================================================ */
+
+/* Tablet (≤960px): two-column grid collapses, hero stacks */
+@media (max-width: 960px) {
+  .page-shell { width: min(100%, calc(100vw - 24px)); }
+  .grid { gap: 14px; }
+  .span-8, .span-4 { grid-column: span 12; }
+  .brand-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    text-align: left;
+  }
+  .brand-grid img[alt="THUG logo"] {
+    max-width: 420px !important;
+    margin: 0 auto;
+  }
+  .hero { padding: 22px; }
+  .hero h1 { font-size: clamp(2rem, 8vw, 3.2rem); }
+  .form { grid-template-columns: 1fr; }
+  .judge-grid,
+  .entry-grid { grid-template-columns: 1fr; }
+  .stats { grid-template-columns: repeat(2, minmax(0,1fr)); }
+}
+
+/* Phone (≤640px): full mobile-first layout */
+@media (max-width: 640px) {
+  .page-shell {
+    width: min(100%, calc(100vw - 16px));
+    padding: 0 4px;
+  }
+  .page-stack {
+    padding-top: 10px;
+    padding-bottom: 24px;
+    gap: 14px;
+  }
+
+  /* Nav: horizontal scroll strip instead of wrapping into a wall */
+  .nav {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .nav-group {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
+    scrollbar-width: thin;
+  }
+  .nav-group::-webkit-scrollbar { height: 4px; }
+  .nav-group::-webkit-scrollbar-thumb {
+    background: rgba(176, 124, 255, 0.4);
+    border-radius: 2px;
+  }
+  .nav-pill {
+    flex-shrink: 0;
+    min-height: 38px;
+    padding: 8px 14px;
+    font-size: 0.85rem;
+  }
+  .nav > p.muted {
+    font-size: 0.75rem;
+    text-align: left;
+  }
+
+  /* Hero */
+  .hero, .panel { padding: 16px; border-radius: 12px; }
+  .hero { padding: 18px 14px; gap: 14px; }
+  .hero h1 {
+    font-size: clamp(1.7rem, 9vw, 2.4rem);
+    line-height: 1;
+  }
+  .hero .eyebrow { font-size: 0.72rem; }
+  .hero .subhead { font-size: 0.92rem; }
+  .brand-grid img[alt="THUG logo"] { max-width: 280px !important; }
+
+  /* CTA buttons stack and become full width */
+  .btn-row {
+    flex-direction: column;
+    gap: 8px;
+  }
+  .btn-row .btn {
+    width: 100%;
+    text-align: center;
+    justify-content: center;
+  }
+
+  /* Logo row (Hypnos + Nappy) stays 2-col but tighter */
+  .logo-row { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .logo-card { padding: 12px; }
+  .logo-card img { max-height: 72px; }
+
+  /* Touch targets ≥44px everywhere */
+  .btn,
+  .input,
+  .select,
+  .textarea {
+    min-height: 44px;
+    font-size: 16px; /* prevents iOS zoom on focus */
+  }
+  .btn { padding: 10px 16px; }
+  .input, .select { padding: 10px 12px; }
+  .textarea { padding: 10px 12px; min-height: 88px; }
+
+  /* Forms: single column, tight spacing */
+  .form { gap: 12px; }
+  .field { gap: 6px; }
+  .field span { font-size: 0.85rem; }
+
+  /* Cards & lists */
+  .card { padding: 12px; }
+  .list { gap: 10px; }
+  .section-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .section-head h2 { font-size: 1.2rem; }
+
+  /* Footer collapses to single column */
+  .footer-grid { grid-template-columns: 1fr; gap: 18px; }
+  .footer-bottom {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  /* Judge workspace — keep slider usable on small screens */
+  .judge-score-value { font-size: 1.8rem; }
+  .judge-slider { height: 44px; }
+  .judge-slider::-webkit-slider-thumb { width: 32px; height: 32px; }
+  .judge-slider::-moz-range-thumb { width: 32px; height: 32px; }
+  .judge-button-row { grid-template-columns: 1fr; gap: 8px; }
+  .judge-chip { min-width: 40px; min-height: 40px; }
+
+  /* Admin moderation cards */
+  .moderation-card { padding: 12px; }
+  .player {
+    aspect-ratio: 16/9;
+    height: auto !important;
+  }
+
+  /* Sponsor banner: smaller logo size for narrow viewport */
+  .sponsor-banner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    min-height: auto;
+    padding: 10px 12px;
+  }
+  .sponsor-banner-label { font-size: 0.7rem; }
+  .sponsor-item { height: 60px; }
+  .sponsor-logo { max-height: 56px; max-width: 160px; }
+
+  /* Rules list reads cleaner */
+  .rules-item { font-size: 0.88rem; padding: 10px 12px 10px 28px; }
+
+  /* Auth bar — readable on small screens */
+  .auth-bar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+}
+
+/* Very small phones (≤380px): squeeze a tiny bit more */
+@media (max-width: 380px) {
+  .hero h1 { font-size: 1.55rem; }
+  .brand-grid img[alt="THUG logo"] { max-width: 220px !important; }
+  .nav-pill { padding: 7px 12px; font-size: 0.82rem; }
+  .logo-card img { max-height: 56px; }
+}
