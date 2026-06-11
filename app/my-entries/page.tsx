@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 
 import { AuthBar } from '@/components/AuthBar';
 import { SiteNav } from '@/components/SiteNav';
-import { replaceMyEntryAction } from '@/app/actions';
+import { replaceMyEntryAction, withdrawMyEntryAction } from '@/app/actions';
 import { getAuthenticatedUser } from '@/lib/auth-server';
 import { getSupabaseAdmin } from '@/lib/server-supabase';
 
@@ -151,6 +151,23 @@ export default async function MyEntriesPage({ searchParams }: { searchParams?: S
                     <p className="muted" style={{ marginTop: 10, fontSize: '.85rem' }}>
                       Replacement is only available while submissions are open.
                     </p>
+                  )}
+
+                  {canReplace && (
+                    <details className="replace-details" style={{ marginTop: 10 }}>
+                      <summary className="btn secondary replace-summary" style={{ background: '#3a1414', borderColor: '#7a1d1d', color: '#ffb4b4' }}>Withdraw this Entry</summary>
+                      <form action={withdrawMyEntryAction} className="form form-single" style={{ marginTop: 12 }}>
+                        <input type="hidden" name="entryId" value={entry.id} />
+                        <p className="muted" style={{ fontSize: '.85rem' }}>
+                          This permanently removes your entry from the competition. You can submit a new one afterward while submissions are still open. Type <strong>WITHDRAW</strong> to confirm.
+                        </p>
+                        <label className="field">
+                          <span>Type WITHDRAW to confirm</span>
+                          <input className="input" name="confirm" placeholder="WITHDRAW" required />
+                        </label>
+                        <button className="btn" type="submit" style={{ background: '#7a1d1d', borderColor: '#a02525', color: '#fff' }}>Withdraw Entry</button>
+                      </form>
+                    </details>
                   )}
                 </div>
               );

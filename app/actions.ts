@@ -4,7 +4,7 @@ import crypto from 'node:crypto';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 
-import { extractYouTubeId } from '@/lib/youtube';
+import { extractYouTubeId, verifyYouTubeEmbeddable } from '@/lib/youtube';
 import { getAuthenticatedUser } from '@/lib/auth-server';
 import { clearAdminSession, clearJudgeSession, getJudgeSession, isAdminAuthenticated, setAdminSession, setJudgeSession } from '@/lib/session';
 import { getActiveCompetitionBundle, getApprovedEntries, getCurrentPlaybackEntry, getLeaderboard } from '@/lib/server-data';
@@ -138,6 +138,11 @@ export async function submitEntryAction(formData: FormData) {
     redirect(routeWithMessage('/submit', 'error', 'Please provide a valid YouTube URL.'));
   }
 
+  const embedCheck = await verifyYouTubeEmbeddable(videoId);
+  if (!embedCheck.ok) {
+    redirect(routeWithMessage('/submit', 'error', embedCheck.error || 'This YouTube video cannot be embedded. Please make sure it is Public with embedding enabled.'));
+  }
+
   const supabase = requireSupabaseOrRedirect('/submit');
 
   const { data: competition } = await supabase
@@ -210,6 +215,11 @@ export async function replaceMyEntryAction(formData: FormData) {
     redirect(routeWithMessage('/my-entries', 'error', 'Please provide a valid YouTube URL.'));
   }
 
+  const embedCheck = await verifyYouTubeEmbeddable(videoId);
+  if (!embedCheck.ok) {
+    redirect(routeWithMessage('/my-entries', 'error', embedCheck.error || 'This YouTube video cannot be embedded. Please make sure it is Public with embedding enabled.'));
+  }
+
   const supabase = requireSupabaseOrRedirect('/my-entries');
 
   const { data: entryRaw } = await supabase
@@ -277,6 +287,87 @@ export async function replaceMyEntryAction(formData: FormData) {
   revalidatePath('/playback');
   revalidatePath('/judge');
   redirect(`/my-entries?success=${encodeURIComponent('Entry replaced and re-submitted for admin re-verification.')}`);
+}
+
+export async function withdrawMyEntryAction(formData: FormData) {
+  const user = await getAuthenticatedUser();
+  if (!user) {
+    redirect('/login?next=/my-entries');
+  }
+
+  const entryId = `${formData.get('entryId') || ''}`.trim();
+  const confirm = `${formData.get('confirm') || ''}`.trim().toUpperCase();
+
+  if (!entryId) {
+    redirect(routeWithMessage('/my-entries', 'error', 'Entry information missing.'));
+  }
+
+  if (confirm !== 'WITHDRAW') {
+    redirect(routeWithMessage('/my-entries', 'error', 'Type WITHDRAW to confirm removing your entry.'));
+  }
+
+  const supabase = requireSupabaseOrRedirect('/my-entries');
+
+  const { data: entryRaw } = await supabase
+    .from('entries')
+    .select('id, competition_id, user_id, title, competitions!entries_competition_id_fkey(status)')
+    .eq('id', entryId)
+    .maybeSingle();
+
+  const entry = entryRaw as null | {
+    id: string;
+    competition_id: string;
+    user_id: string | null;
+    title: string;
+    competitions: { status: string } | { status: string }[] | null;
+  };
+
+  if (!entry || entry.user_id !== user.id) {
+    redirect(routeWithMessage('/my-entries', 'error', 'Entry not found.'));
+  }
+
+  const competitionStatus = Array.isArray(entry.competitions)
+    ? entry.competitions[0]?.status
+    : entry.competitions?.status;
+
+  if (competitionStatus !== 'Submissions Open') {
+    redirect(routeWithMessage('/my-entries', 'error', 'Submissions are closed. Withdrawal is no longer allowed.'));
+  }
+
+  // Clear playback pointer if needed
+  const { data: comp } = await supabase
+    .from('competitions')
+    .select('current_playback_entry_id')
+    .eq('id', entry.competition_id)
+    .maybeSingle();
+
+  if (comp?.current_playback_entry_id === entryId) {
+    await supabase
+      .from('competitions')
+      .update({ current_playback_entry_id: null, updated_at: new Date().toISOString() })
+      .eq('id', entry.competition_id);
+  }
+
+  // Remove any scores attached to this entry
+  await supabase.from('scores').delete().eq('entry_id', entryId);
+
+  const { error } = await supabase
+    .from('entries')
+    .delete()
+    .eq('id', entryId)
+    .eq('user_id', user.id);
+
+  if (error) {
+    redirect(routeWithMessage('/my-entries', 'error', 'Unable to withdraw the entry.'));
+  }
+
+  await logAudit('entry_withdrawn', 'entries', { entryId, title: entry.title, userId: user.id }, entry.competition_id);
+  revalidatePath('/my-entries');
+  revalidatePath('/admin');
+  revalidatePath('/playback');
+  revalidatePath('/judge');
+  revalidatePath('/submit');
+  redirect(`/my-entries?success=${encodeURIComponent('Entry withdrawn. You can submit a new one while submissions are still open.')}`);
 }
 
 export async function adminLoginAction(formData: FormData) {
