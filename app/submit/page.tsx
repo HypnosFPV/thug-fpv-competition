@@ -7,6 +7,7 @@ import { SiteNav } from '@/components/SiteNav';
 import { submitEntryAction } from '@/app/actions';
 import { getAuthenticatedUser } from '@/lib/auth-server';
 import { getActiveCompetitionBundle } from '@/lib/server-data';
+import { formatDuration } from '@/lib/youtube';
 
 export const dynamic = 'force-dynamic';
 
@@ -66,6 +67,11 @@ export default async function SubmitPage({ searchParams }: { searchParams?: Sear
             <div className="card notice-card">
               <strong>{competition.name}</strong>
               <p className="muted">Current status: {competition.status}</p>
+              {competition.max_video_seconds && (
+                <p className="muted" style={{ marginTop: 6, color: '#ffd166', fontWeight: 600 }}>
+                  Max video length: {formatDuration(competition.max_video_seconds)} — longer videos will be rejected.
+                </p>
+              )}
             </div>
           )}
 
@@ -115,6 +121,9 @@ export default async function SubmitPage({ searchParams }: { searchParams?: Sear
           <div className="list">
             <div className="card"><strong>YouTube only</strong><p className="muted">No direct uploads, Instagram, or TikTok.</p></div>
             <div className="card"><strong>Embeddable playback required</strong><p className="muted">Private, age-restricted, or embed-disabled videos will be rejected.</p></div>
+            {competition?.max_video_seconds && (
+              <div className="card"><strong>Max length: {formatDuration(competition.max_video_seconds)}</strong><p className="muted">Videos longer than this limit are rejected at submit time.</p></div>
+            )}
             <div className="card"><strong>Account-bound</strong><p className="muted">Only your account can see your entries. Nothing public anywhere on this site.</p></div>
             <div className="card"><strong>Admin moderation</strong><p className="muted">Every entry is reviewed before it appears in judge and OBS playback queues.</p></div>
           </div>

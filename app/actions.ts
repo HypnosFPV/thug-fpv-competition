@@ -138,21 +138,21 @@ export async function submitEntryAction(formData: FormData) {
     redirect(routeWithMessage('/submit', 'error', 'Please provide a valid YouTube URL.'));
   }
 
-  const embedCheck = await verifyYouTubeEmbeddable(videoId);
-  if (!embedCheck.ok) {
-    redirect(routeWithMessage('/submit', 'error', embedCheck.error || 'This YouTube video cannot be embedded. Please make sure it is Public with embedding enabled.'));
-  }
-
   const supabase = requireSupabaseOrRedirect('/submit');
 
   const { data: competition } = await supabase
     .from('competitions')
-    .select('id, status')
+    .select('id, status, max_video_seconds')
     .eq('id', competitionId)
-    .maybeSingle();
+    .maybeSingle<{ id: string; status: string; max_video_seconds: number | null }>();
 
   if (!competition || competition.status !== 'Submissions Open') {
     redirect(routeWithMessage('/submit', 'error', 'Submissions are not open right now.'));
+  }
+
+  const embedCheck = await verifyYouTubeEmbeddable(videoId, { maxSeconds: competition.max_video_seconds });
+  if (!embedCheck.ok) {
+    redirect(routeWithMessage('/submit', 'error', embedCheck.error || 'This YouTube video cannot be embedded. Please make sure it is Public with embedding enabled.'));
   }
 
   // Block duplicate: one entry per user per competition
@@ -215,16 +215,11 @@ export async function replaceMyEntryAction(formData: FormData) {
     redirect(routeWithMessage('/my-entries', 'error', 'Please provide a valid YouTube URL.'));
   }
 
-  const embedCheck = await verifyYouTubeEmbeddable(videoId);
-  if (!embedCheck.ok) {
-    redirect(routeWithMessage('/my-entries', 'error', embedCheck.error || 'This YouTube video cannot be embedded. Please make sure it is Public with embedding enabled.'));
-  }
-
   const supabase = requireSupabaseOrRedirect('/my-entries');
 
   const { data: entryRaw } = await supabase
     .from('entries')
-    .select('id, competition_id, user_id, competitions!entries_competition_id_fkey(status)')
+    .select('id, competition_id, user_id, competitions!entries_competition_id_fkey(status, max_video_seconds)')
     .eq('id', entryId)
     .maybeSingle();
 
@@ -232,19 +227,29 @@ export async function replaceMyEntryAction(formData: FormData) {
     id: string;
     competition_id: string;
     user_id: string | null;
-    competitions: { status: string } | { status: string }[] | null;
+    competitions:
+      | { status: string; max_video_seconds: number | null }
+      | { status: string; max_video_seconds: number | null }[]
+      | null;
   };
 
   if (!entry || entry.user_id !== user.id) {
     redirect(routeWithMessage('/my-entries', 'error', 'Entry not found.'));
   }
 
-  const competitionStatus = Array.isArray(entry.competitions)
-    ? entry.competitions[0]?.status
-    : entry.competitions?.status;
+  const compRow = Array.isArray(entry.competitions)
+    ? entry.competitions[0]
+    : entry.competitions;
+  const competitionStatus = compRow?.status;
+  const maxVideoSeconds = compRow?.max_video_seconds ?? null;
 
   if (competitionStatus !== 'Submissions Open') {
     redirect(routeWithMessage('/my-entries', 'error', 'Submissions are closed. Replacement is no longer allowed.'));
+  }
+
+  const embedCheck = await verifyYouTubeEmbeddable(videoId, { maxSeconds: maxVideoSeconds });
+  if (!embedCheck.ok) {
+    redirect(routeWithMessage('/my-entries', 'error', embedCheck.error || 'This YouTube video cannot be embedded. Please make sure it is Public with embedding enabled.'));
   }
 
   const { error } = await supabase
@@ -463,9 +468,22 @@ export async function updateCompetitionSettingsAction(formData: FormData) {
   const competitionId = `${formData.get('competitionId') || ''}`.trim();
   const name = `${formData.get('name') || ''}`.trim();
   const sharedEventPassword = `${formData.get('sharedEventPassword') || ''}`.trim();
+  const maxVideoSecondsRaw = `${formData.get('maxVideoSeconds') || ''}`.trim();
 
   if (!competitionId || !name || !sharedEventPassword) {
     redirect(routeWithMessage('/admin', 'error', 'Competition name and shared event password are required.'));
+  }
+
+  let maxVideoSeconds: number | null = null;
+  if (maxVideoSecondsRaw !== '') {
+    const parsed = parseInt(maxVideoSecondsRaw, 10);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      redirect(routeWithMessage('/admin', 'error', 'Max video length must be a positive number of seconds, or leave blank for no limit.'));
+    }
+    if (parsed > 36000) {
+      redirect(routeWithMessage('/admin', 'error', 'Max video length cannot exceed 36000 seconds (10 hours).'));
+    }
+    maxVideoSeconds = parsed;
   }
 
   const supabase = requireSupabaseOrRedirect('/admin');
@@ -474,6 +492,7 @@ export async function updateCompetitionSettingsAction(formData: FormData) {
     .update({
       name,
       shared_event_password: sharedEventPassword,
+      max_video_seconds: maxVideoSeconds,
       updated_at: new Date().toISOString()
     })
     .eq('id', competitionId);
@@ -482,7 +501,7 @@ export async function updateCompetitionSettingsAction(formData: FormData) {
     redirect(routeWithMessage('/admin', 'error', 'Unable to update competition settings.'));
   }
 
-  await logAudit('competition_settings_updated', 'competitions', { name }, competitionId);
+  await logAudit('competition_settings_updated', 'competitions', { name, maxVideoSeconds }, competitionId);
   revalidatePath('/');
   revalidatePath('/submit');
   revalidatePath('/judge');

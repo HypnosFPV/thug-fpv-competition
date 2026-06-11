@@ -156,6 +156,22 @@ export default async function AdminPage({ searchParams }: { searchParams?: Searc
                     <span>Shared event password</span>
                     <input className="input" name="sharedEventPassword" defaultValue={competition.shared_event_password} required />
                   </label>
+                  <label className="field">
+                    <span>Max video length (seconds)</span>
+                    <input
+                      className="input"
+                      name="maxVideoSeconds"
+                      type="number"
+                      min="1"
+                      max="36000"
+                      step="1"
+                      placeholder="Leave blank for no limit"
+                      defaultValue={competition.max_video_seconds ?? ''}
+                    />
+                    <small className="muted" style={{ marginTop: 4, fontSize: '.78rem' }}>
+                      Example: 90 for a 90-second limit. Submitters get an error if their YouTube video is longer.
+                    </small>
+                  </label>
                   <div className="field">
                     <span>Current status</span>
                     <div className="status-inline">

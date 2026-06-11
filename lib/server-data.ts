@@ -14,6 +14,7 @@ export interface CompetitionRecord {
   email_notifications_enabled: boolean;
   current_playback_entry_id: string | null;
   tie_break_method: string;
+  max_video_seconds: number | null;
   created_at: string;
   updated_at: string;
   archived_at: string | null;
