@@ -1,8 +1,8 @@
-import { judgeLoginAction, judgeLogoutAction, saveScoreAction } from '@/app/actions';
+import { judgeLoginAction, judgeLogoutAction } from '@/app/actions';
+import { JudgeWorkspace } from '@/components/JudgeWorkspace';
 import { SiteNav } from '@/components/SiteNav';
 import { getJudgeSession } from '@/lib/session';
 import { getActiveCompetitionBundle, getApprovedEntries } from '@/lib/server-data';
-import { getYouTubeEmbedUrl } from '@/lib/youtube';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,12 +21,22 @@ export default async function JudgePage({ searchParams }: { searchParams?: Searc
   const approvedEntries = getApprovedEntries(bundle.entries);
   const judgeSession = await getJudgeSession();
   const currentJudge = bundle.judgeSlots.find((slot) => slot.id === judgeSession?.judgeSlotId);
-  const scoreByEntry = new Map(
-    bundle.scores
-      .filter((score) => score.judgeSlotId === judgeSession?.judgeSlotId)
-      .map((score) => [score.entryId, score.score])
-  );
   const canScore = competition?.status === 'Judging Live';
+
+  const myScores: Record<string, number> = {};
+  for (const s of bundle.scores) {
+    if (s.judgeSlotId === judgeSession?.judgeSlotId) {
+      myScores[s.entryId] = s.score;
+    }
+  }
+
+  const workspaceEntries = approvedEntries.map((e, i) => ({
+    id: e.id,
+    title: e.title,
+    entrantName: e.entrantName,
+    youtubeVideoId: e.youtubeVideoId,
+    runningOrder: e.runningOrder ?? i + 1
+  }));
 
   return (
     <main className="page-shell page-stack">
@@ -64,6 +74,11 @@ export default async function JudgePage({ searchParams }: { searchParams?: Searc
                 <strong>{currentJudge?.label ?? judgeSession.judgeCode}</strong>
                 <p className="muted">Competition: {competition.name}</p>
                 <p className="muted">Status: {competition.status}</p>
+                {!canScore && (
+                  <p className="muted" style={{ marginTop: 8, fontSize: '.82rem' }}>
+                    Scoring unlocks when admin sets status to <strong>Judging Live</strong>.
+                  </p>
+                )}
               </div>
               <form action={judgeLogoutAction}>
                 <button className="btn secondary" type="submit">Log Out Judge</button>
@@ -75,62 +90,18 @@ export default async function JudgePage({ searchParams }: { searchParams?: Searc
         <section className="panel span-8">
           <div className="section-head">
             <h2>Judge Workspace</h2>
-            <span className="tag">Overall score only</span>
+            <span className="tag">One entry at a time</span>
           </div>
 
           {!competition && <p className="muted">No active competition is available yet.</p>}
           {competition && !approvedEntries.length && <p className="muted">No approved entries are ready for judges yet.</p>}
-          {competition && judgeSession && judgeSession.competitionId === competition.id && (
-            <>
-              {!canScore && (
-                <div className="card notice-card" style={{ marginBottom: 12 }}>
-                  <strong>Read-only mode</strong>
-                  <p className="muted">Scores can only be edited while the competition status is Judging Live.</p>
-                </div>
-              )}
-              <div className="list">
-                {approvedEntries.map((entry, index) => (
-                  <div className="card" key={entry.id}>
-                    <div className="section-head">
-                      <div>
-                        <h3 style={{ marginBottom: 6 }}>{entry.title}</h3>
-                        <p className="muted" style={{ margin: 0 }}>
-                          Entry #{entry.runningOrder ?? index + 1} · {entry.entrantName}
-                        </p>
-                      </div>
-                      <span className="tag">{scoreByEntry.has(entry.id) ? `Saved: ${scoreByEntry.get(entry.id)?.toFixed(1)}` : 'Unscored'}</span>
-                    </div>
-                    <iframe
-                      className="player"
-                      src={getYouTubeEmbedUrl(entry.youtubeVideoId)}
-                      title={entry.title}
-                      allow="autoplay; encrypted-media; picture-in-picture"
-                      allowFullScreen
-                    />
-                    <form className="toolbar score-form" action={saveScoreAction}>
-                      <input type="hidden" name="competitionId" value={competition.id} />
-                      <input type="hidden" name="entryId" value={entry.id} />
-                      <label className="field score-field">
-                        <span>Overall score</span>
-                        <input
-                          className="input"
-                          name="score"
-                          type="number"
-                          min="1"
-                          max="10"
-                          step="0.1"
-                          defaultValue={scoreByEntry.get(entry.id)?.toFixed(1) ?? ''}
-                          placeholder="8.7"
-                          required
-                          disabled={!canScore}
-                        />
-                      </label>
-                      <button className="btn primary" type="submit" disabled={!canScore}>Save Score</button>
-                    </form>
-                  </div>
-                ))}
-              </div>
-            </>
+          {competition && judgeSession && judgeSession.competitionId === competition.id && approvedEntries.length > 0 && (
+            <JudgeWorkspace
+              competitionId={competition.id}
+              entries={workspaceEntries}
+              initialScores={myScores}
+              canScore={canScore}
+            />
           )}
         </section>
       </section>
