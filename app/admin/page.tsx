@@ -15,6 +15,7 @@ import { AdminNotificationWatcher } from '@/components/AdminNotificationWatcher'
 import { SiteNav } from '@/components/SiteNav';
 import { COMPETITION_STATUSES } from '@/lib/constants';
 import { getActiveCompetitionBundle, getApprovedEntries, getCurrentPlaybackEntry, getLeaderboard, getPendingEntries } from '@/lib/server-data';
+import { getSupabaseAdmin } from '@/lib/server-supabase';
 import { isAdminAuthenticated } from '@/lib/session';
 import { getYouTubeEmbedUrl } from '@/lib/youtube';
 
@@ -60,6 +61,20 @@ export default async function AdminPage({ searchParams }: { searchParams?: Searc
   } as const;
   const leaderboard = getLeaderboard(bundle.entries, bundle.scores);
   const currentPlayback = getCurrentPlaybackEntry(bundle);
+
+  // Load archived competitions for export links
+  let archives: { archived_competition_id: string; competition_name: string; created_at: string }[] = [];
+  if (isAdmin) {
+    const supabaseRO = getSupabaseAdmin();
+    if (supabaseRO) {
+      const { data: archiveRows } = await supabaseRO
+        .from('competition_archives')
+        .select('archived_competition_id, competition_name, created_at')
+        .order('created_at', { ascending: false })
+        .limit(50);
+      archives = (archiveRows ?? []) as typeof archives;
+    }
+  }
 
   return (
     <main className="page-shell page-stack">
@@ -331,6 +346,17 @@ export default async function AdminPage({ searchParams }: { searchParams?: Searc
                 </div>
 
                 <div className="section-head" style={{ marginTop: 18 }}>
+                  <h2>Export Results</h2>
+                  <span className="tag">CSV</span>
+                </div>
+                <p className="muted" style={{ fontSize: '.88rem' }}>
+                  Download a full snapshot: every entry, video link, per-judge scores, sums, averages, and final placements. Works for the live competition and for archived ones below.
+                </p>
+                <a className="btn primary" href={`/api/export/${competition.id}`} download>
+                  Export Current Competition CSV
+                </a>
+
+                <div className="section-head" style={{ marginTop: 18 }}>
                   <h2>Danger Zone</h2>
                   <span className="tag">Typed confirm</span>
                 </div>
@@ -342,6 +368,29 @@ export default async function AdminPage({ searchParams }: { searchParams?: Searc
                   </label>
                   <button className="btn danger" type="submit">Archive and Reset Competition</button>
                 </form>
+
+                <div className="section-head" style={{ marginTop: 18 }}>
+                  <h2>Archived Competitions</h2>
+                  <span className="tag">History</span>
+                </div>
+                {archives.length === 0 && (
+                  <p className="muted" style={{ fontSize: '.88rem' }}>No archived competitions yet.</p>
+                )}
+                {archives.length > 0 && (
+                  <div className="list">
+                    {archives.map((a) => (
+                      <div className="card" key={a.archived_competition_id}>
+                        <strong>{a.competition_name}</strong>
+                        <p className="muted" style={{ fontSize: '.82rem' }}>
+                          Archived {a.created_at ? new Date(a.created_at).toLocaleString() : '—'}
+                        </p>
+                        <a className="btn secondary" href={`/api/export/${a.archived_competition_id}`} download>
+                          Export CSV
+                        </a>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </aside>
             </section>
           )}

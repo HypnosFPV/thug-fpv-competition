@@ -19,7 +19,7 @@ export function SiteNav({ mutedText }: { mutedText?: string }) {
           </Link>
         ))}
       </div>
-      <p className="muted" style={{ margin: 0 }}>{mutedText ?? 'Production scaffold · Next.js + Supabase + Vercel'}</p>
+      <p className="muted" style={{ margin: 0 }}>{mutedText ?? 'THUG FPV Competition Platform'}</p>
     </nav>
   );
 }
