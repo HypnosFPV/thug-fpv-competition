@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
+import { SiteFooter } from '@/components/SiteFooter';
 import { SiteNav } from '@/components/SiteNav';
 import { supabaseBrowser } from '@/lib/supabase-browser';
 
@@ -141,6 +142,7 @@ export default function LoginPage() {
       <Suspense fallback={<section className="panel narrow-panel"><p className="muted">Loading…</p></section>}>
         <LoginForm />
       </Suspense>
+      <SiteFooter />
     </main>
   );
 }

@@ -1,3 +1,4 @@
+import { SiteFooter } from '@/components/SiteFooter';
 import { SiteNav } from '@/components/SiteNav';
 
 export const dynamic = 'force-dynamic';
@@ -50,6 +51,7 @@ export default async function EntriesLookupPage({ searchParams }: { searchParams
           </p>
         </div>
       </section>
+      <SiteFooter />
     </main>
   );
 }

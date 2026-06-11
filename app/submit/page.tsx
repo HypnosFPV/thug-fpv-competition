@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 
 import { AuthBar } from '@/components/AuthBar';
 import { BrandHeader } from '@/components/BrandHeader';
+import { SiteFooter } from '@/components/SiteFooter';
 import { SiteNav } from '@/components/SiteNav';
 import { submitEntryAction } from '@/app/actions';
 import { getAuthenticatedUser } from '@/lib/auth-server';
@@ -119,6 +120,7 @@ export default async function SubmitPage({ searchParams }: { searchParams?: Sear
           </div>
         </aside>
       </section>
+      <SiteFooter />
     </main>
   );
 }

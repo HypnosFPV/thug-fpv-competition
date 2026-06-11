@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 
 import { AuthBar } from '@/components/AuthBar';
+import { SiteFooter } from '@/components/SiteFooter';
 import { SiteNav } from '@/components/SiteNav';
 import { replaceMyEntryAction, withdrawMyEntryAction } from '@/app/actions';
 import { getAuthenticatedUser } from '@/lib/auth-server';
@@ -63,6 +64,7 @@ export default async function MyEntriesPage({ searchParams }: { searchParams?: S
         <section className="panel narrow-panel">
           <h2>Server not configured</h2>
         </section>
+        <SiteFooter />
       </main>
     );
   }
@@ -175,6 +177,7 @@ export default async function MyEntriesPage({ searchParams }: { searchParams?: S
           </div>
         )}
       </section>
+      <SiteFooter />
     </main>
   );
 }
