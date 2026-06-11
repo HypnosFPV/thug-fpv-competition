@@ -559,60 +559,76 @@ select option {
 }
 .judge-chip:disabled { opacity: 0.5; cursor: not-allowed; }
 
-/* ---------- Sponsor scrolling banner ---------- */
+/* ---------- Sponsor banner (under video frame, OBS-friendly) ---------- */
+.player-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.player-stack .player {
+  margin-bottom: 0;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
 .sponsor-banner {
-  margin-top: 16px;
-  padding: 10px 0;
-  background: linear-gradient(90deg, rgba(176,124,255,0.08), rgba(255,209,102,0.08), rgba(176,124,255,0.08));
+  margin: 0;
+  padding: 6px 12px;
+  background: linear-gradient(90deg, rgba(0,0,0,0.7) 0%, rgba(20,12,38,0.7) 100%);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
+  border-top: none;
+  border-bottom-left-radius: 10px;
+  border-bottom-right-radius: 10px;
   overflow: hidden;
   position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 56px;
 }
 .sponsor-banner-label {
-  position: absolute;
-  top: 6px;
-  left: 12px;
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.55);
-  z-index: 2;
-  background: rgba(0, 0, 0, 0.35);
-  padding: 2px 8px;
-  border-radius: 4px;
+  color: rgba(255, 255, 255, 0.5);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .sponsor-marquee {
-  width: 100%;
+  flex: 1;
   overflow: hidden;
-  mask-image: linear-gradient(90deg, transparent 0, #000 6%, #000 94%, transparent 100%);
-  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 6%, #000 94%, transparent 100%);
+  mask-image: linear-gradient(90deg, #000 0, #000 94%, transparent 100%);
+  -webkit-mask-image: linear-gradient(90deg, #000 0, #000 94%, transparent 100%);
 }
 .sponsor-track {
   display: flex;
   align-items: center;
-  gap: 48px;
+  gap: 32px;
   width: max-content;
   animation: sponsor-scroll 40s linear infinite;
-  padding: 18px 24px 8px;
+  padding: 2px 0;
+}
+.sponsor-track-static {
+  animation: none;
+  width: auto;
+  justify-content: flex-start;
 }
 .sponsor-banner:hover .sponsor-track { animation-play-state: paused; }
 .sponsor-item {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 70px;
+  height: 44px;
 }
 .sponsor-logo {
-  max-height: 64px;
-  max-width: 200px;
+  max-height: 40px;
+  max-width: 140px;
   width: auto;
   height: auto;
   object-fit: contain;
-  filter: drop-shadow(0 2px 6px rgba(0,0,0,0.4));
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
   transition: transform 0.2s ease;
 }
-.sponsor-item:hover .sponsor-logo { transform: scale(1.08); }
+.sponsor-item:hover .sponsor-logo { transform: scale(1.05); }
 
 @keyframes sponsor-scroll {
   from { transform: translateX(0); }

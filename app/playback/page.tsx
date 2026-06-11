@@ -96,13 +96,16 @@ export default async function PlaybackPage({ searchParams }: { searchParams?: Se
               <strong>Now playing</strong>
               <p className="muted">{currentEntry.title} · {currentEntry.entrantName}</p>
             </div>
-            <iframe
-              className="player"
-              src={getYouTubeEmbedUrl(currentEntry.youtubeVideoId)}
-              title={currentEntry.title}
-              allow="autoplay; encrypted-media; picture-in-picture"
-              allowFullScreen
-            />
+            <div className="player-stack">
+              <iframe
+                className="player"
+                src={getYouTubeEmbedUrl(currentEntry.youtubeVideoId)}
+                title={currentEntry.title}
+                allow="autoplay; encrypted-media; picture-in-picture"
+                allowFullScreen
+              />
+              <SponsorBanner sponsors={sponsors} />
+            </div>
           </>
         )}
 
@@ -128,8 +131,6 @@ export default async function PlaybackPage({ searchParams }: { searchParams?: Se
           ))}
         </div>
       </section>
-
-      <SponsorBanner sponsors={sponsors} />
     </main>
   );
 }
