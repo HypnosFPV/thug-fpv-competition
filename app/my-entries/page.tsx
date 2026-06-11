@@ -53,6 +53,7 @@ export default async function MyEntriesPage({ searchParams }: { searchParams?: S
   const params = (await searchParams) ?? {};
   const success = pickMessage(params.success);
   const error = pickMessage(params.error);
+  const notice = pickMessage(params.notice);
 
   const supabase = getSupabaseAdmin();
   if (!supabase) {
@@ -86,6 +87,7 @@ export default async function MyEntriesPage({ searchParams }: { searchParams?: S
         </div>
 
         {success && <div className="card success-card"><strong>Success</strong><p className="muted">{success}</p></div>}
+        {notice && <div className="card notice-card"><strong>Notice</strong><p className="muted">{notice}</p></div>}
         {error && <div className="card error-card"><strong>Notice</strong><p className="muted">{error}</p></div>}
         {queryError && <div className="card error-card"><strong>Could not load entries</strong><p className="muted">{queryError.message}</p></div>}
 

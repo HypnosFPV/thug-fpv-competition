@@ -34,7 +34,7 @@ export default async function SubmitPage({ searchParams }: { searchParams?: Sear
     ? bundle.entries.find((e: { userId?: string | null }) => e.userId === user.id)
     : null;
   if (existingEntry) {
-    redirect('/my-entries?error=' + encodeURIComponent('You already have an entry for this competition. Use Replace this Entry below while submissions are open.'));
+    redirect('/my-entries?notice=' + encodeURIComponent('You already have an entry for this competition. Use Replace this Entry below while submissions are open.'));
   }
 
   return (
