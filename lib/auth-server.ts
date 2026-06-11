@@ -14,9 +14,12 @@ function decodeJwt(token: string): { sub?: string; email?: string; exp?: number 
 
 async function readAuthTokenFromCookies() {
   const store = await cookies();
-  // Supabase JS stores tokens under the configured storageKey when using localStorage on the browser,
-  // but when the client is configured with cookies-only storage it falls back to this format.
-  // We support both by scanning for any cookie that looks like a Supabase auth session.
+
+  // Primary: explicit cookie set from the browser AuthCookieSync component.
+  const direct = store.get('thug-fpv-access-token')?.value;
+  if (direct && direct.split('.').length === 3) return direct;
+
+  // Fallback: scan Supabase's own cookie format if present.
   for (const cookie of store.getAll()) {
     if (!cookie.value) continue;
     if (cookie.name.includes('sb-') && cookie.name.endsWith('-auth-token')) {
