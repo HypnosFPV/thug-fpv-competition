@@ -239,7 +239,7 @@ export default async function AdminPage({ searchParams }: { searchParams?: Searc
                 </form>
               </section>
 
-              <section className="panel span-8">
+              <section className="panel span-8" id="moderation">
                 <div className="section-head">
                   <h2>Entry Moderation</h2>
                   <span className="tag">Filter: {filter}</span>

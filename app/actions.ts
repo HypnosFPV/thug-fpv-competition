@@ -514,9 +514,10 @@ export async function approveEntryAction(formData: FormData) {
   revalidatePath('/admin');
   revalidatePath('/playback');
 
-  redirect(routeWithMessage('/admin', 'success', autoSetPlayback
+  const msg = autoSetPlayback
     ? `Approved as #${nextOrder} and now playing on /playback.`
-    : `Approved as #${nextOrder} and added to playback queue.`));
+    : `Approved as #${nextOrder} and added to playback queue.`;
+  redirect(`/admin?filter=pending&success=${encodeURIComponent(msg)}#moderation`);
 }
 
 export async function rejectEntryAction(formData: FormData) {
@@ -569,7 +570,7 @@ export async function rejectEntryAction(formData: FormData) {
   revalidatePath('/admin');
   revalidatePath('/playback');
 
-  redirect(routeWithMessage('/admin', 'success', 'Entry rejected and removed from queue.'));
+  redirect(`/admin?filter=pending&success=${encodeURIComponent('Entry rejected and removed from queue.')}#moderation`);
 }
 
 export async function setPlaybackEntryAction(formData: FormData) {
