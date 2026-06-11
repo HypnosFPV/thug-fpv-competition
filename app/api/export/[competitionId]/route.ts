@@ -42,6 +42,19 @@ type Competition = {
   archived_at?: string | null;
 };
 
+type Sponsor = {
+  id: string;
+  sponsor_name: string;
+  contact_name: string | null;
+  contact_email: string | null;
+  website_url: string | null;
+  prize_description: string;
+  logo_url: string | null;
+  approved: boolean;
+  notes: string | null;
+  created_at: string;
+};
+
 function csvEscape(value: unknown): string {
   if (value === null || value === undefined) return '';
   const s = String(value);
@@ -63,7 +76,7 @@ function average(nums: number[]): number | null {
   return sum / nums.length;
 }
 
-function buildCsv(comp: Competition, judges: JudgeSlot[], entries: Entry[], scores: Score[]): string {
+function buildCsv(comp: Competition, judges: JudgeSlot[], entries: Entry[], scores: Score[], sponsors: Sponsor[] = []): string {
   const sections: string[] = [];
 
   // --- Header / metadata ---
@@ -211,6 +224,33 @@ function buildCsv(comp: Competition, judges: JudgeSlot[], entries: Entry[], scor
     );
   }
 
+  // --- Sponsors ---
+  const sponsorHeaders = [
+    'Sponsor ID',
+    'Sponsor Name',
+    'Approved',
+    'Prize',
+    'Contact Name',
+    'Contact Email',
+    'Website',
+    'Logo URL',
+    'Admin Notes',
+    'Submitted At'
+  ];
+  const sponsorRows = sponsors.map((s) => [
+    s.id,
+    s.sponsor_name,
+    s.approved ? 'Yes' : 'No',
+    s.prize_description,
+    s.contact_name ?? '',
+    s.contact_email ?? '',
+    s.website_url ?? '',
+    s.logo_url ?? '',
+    s.notes ?? '',
+    s.created_at
+  ]);
+  sections.push('\nSPONSORS\n' + rowsToCsv(sponsorHeaders, sponsorRows));
+
   return sections.join('\n');
 }
 
@@ -247,7 +287,7 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ competitio
     .maybeSingle<Competition>();
 
   if (liveComp) {
-    const [{ data: entries }, { data: scores }, { data: judges }] = await Promise.all([
+    const [{ data: entries }, { data: scores }, { data: judges }, { data: sponsors }] = await Promise.all([
       supabase.from('entries').select('*').eq('competition_id', competitionId),
       supabase
         .from('scores')
@@ -259,6 +299,10 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ competitio
       supabase
         .from('judge_slots')
         .select('id, code, display_name')
+        .eq('competition_id', competitionId),
+      supabase
+        .from('sponsors')
+        .select('id, sponsor_name, contact_name, contact_email, website_url, prize_description, logo_url, approved, notes, created_at')
         .eq('competition_id', competitionId)
     ]);
 
@@ -266,7 +310,8 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ competitio
       liveComp,
       (judges ?? []) as JudgeSlot[],
       (entries ?? []) as Entry[],
-      (scores ?? []) as Score[]
+      (scores ?? []) as Score[],
+      (sponsors ?? []) as Sponsor[]
     );
 
     return new NextResponse(csv, {
@@ -300,7 +345,7 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ competitio
     return new NextResponse('Competition not found.', { status: 404 });
   }
 
-  const snap = archive.archived_snapshot;
+  const snap = archive.archived_snapshot as typeof archive.archived_snapshot & { sponsors?: Sponsor[] };
   const csv = buildCsv(
     snap.competition ?? {
       id: archive.archived_competition_id,
@@ -310,7 +355,8 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ competitio
     },
     snap.judgeSlots ?? [],
     snap.entries ?? [],
-    snap.scores ?? []
+    snap.scores ?? [],
+    snap.sponsors ?? []
   );
 
   return new NextResponse(csv, {

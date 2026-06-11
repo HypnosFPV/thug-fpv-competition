@@ -2,9 +2,12 @@ import {
   adminLoginAction,
   adminLogoutAction,
   approveEntryAction,
+  approveSponsorAction,
   archiveAndResetCompetitionAction,
   createInitialCompetitionAction,
+  deleteSponsorAction,
   rejectEntryAction,
+  rejectSponsorAction,
   resetJudgePinsAction,
   setPlaybackEntryAction,
   updateCompetitionSettingsAction,
@@ -64,6 +67,19 @@ export default async function AdminPage({ searchParams }: { searchParams?: Searc
 
   // Load archived competitions for export links
   let archives: { archived_competition_id: string; competition_name: string; created_at: string }[] = [];
+  type SponsorRow = {
+    id: string;
+    sponsor_name: string;
+    contact_name: string | null;
+    contact_email: string | null;
+    website_url: string | null;
+    prize_description: string;
+    logo_url: string | null;
+    approved: boolean;
+    notes: string | null;
+    created_at: string;
+  };
+  let sponsors: SponsorRow[] = [];
   if (isAdmin) {
     const supabaseRO = getSupabaseAdmin();
     if (supabaseRO) {
@@ -73,8 +89,19 @@ export default async function AdminPage({ searchParams }: { searchParams?: Searc
         .order('created_at', { ascending: false })
         .limit(50);
       archives = (archiveRows ?? []) as typeof archives;
+
+      if (competition) {
+        const { data: sponsorRows } = await supabaseRO
+          .from('sponsors')
+          .select('id, sponsor_name, contact_name, contact_email, website_url, prize_description, logo_url, approved, notes, created_at')
+          .eq('competition_id', competition.id)
+          .order('created_at', { ascending: false });
+        sponsors = (sponsorRows ?? []) as SponsorRow[];
+      }
     }
   }
+  const pendingSponsors = sponsors.filter((s) => !s.approved);
+  const approvedSponsors = sponsors.filter((s) => s.approved);
 
   return (
     <main className="page-shell page-stack">
@@ -406,6 +433,88 @@ export default async function AdminPage({ searchParams }: { searchParams?: Searc
                       </div>
                     ))}
                   </div>
+                )}
+
+                <div id="sponsors" className="section-head" style={{ marginTop: 18 }}>
+                  <h2>Sponsors</h2>
+                  <span className="tag">{approvedSponsors.length} approved · {pendingSponsors.length} pending</span>
+                </div>
+                <p className="muted" style={{ fontSize: '.85rem' }}>
+                  Submissions from the public <a className="inline-link" href="/sponsor">/sponsor</a> form. Approved logos scroll on the <a className="inline-link" href="/playback">/playback</a> banner. Contact details are admin-only.
+                </p>
+
+                {pendingSponsors.length > 0 && (
+                  <>
+                    <h3 style={{ marginTop: 10, fontSize: '.95rem' }}>Pending Review</h3>
+                    <div className="list">
+                      {pendingSponsors.map((s) => (
+                        <div className="card notice-card" key={s.id}>
+                          <strong>{s.sponsor_name}</strong>
+                          {s.logo_url && (
+                            <img src={s.logo_url} alt={s.sponsor_name} className="sponsor-thumb" />
+                          )}
+                          <p className="muted" style={{ fontSize: '.82rem', marginTop: 6 }}>
+                            <strong>Prize:</strong> {s.prize_description}
+                          </p>
+                          {s.contact_name && <p className="muted" style={{ fontSize: '.78rem' }}>Contact: {s.contact_name}</p>}
+                          {s.contact_email && <p className="muted" style={{ fontSize: '.78rem' }}>Email: {s.contact_email}</p>}
+                          {s.website_url && (
+                            <p className="muted" style={{ fontSize: '.78rem' }}>
+                              <a className="inline-link" href={s.website_url} target="_blank" rel="noopener noreferrer">{s.website_url}</a>
+                            </p>
+                          )}
+                          <div className="toolbar" style={{ marginTop: 8 }}>
+                            <form action={approveSponsorAction}>
+                              <input type="hidden" name="sponsorId" value={s.id} />
+                              <input type="hidden" name="competitionId" value={competition.id} />
+                              <button className="btn primary" type="submit">✓ Approve</button>
+                            </form>
+                            <form action={deleteSponsorAction}>
+                              <input type="hidden" name="sponsorId" value={s.id} />
+                              <input type="hidden" name="competitionId" value={competition.id} />
+                              <button className="btn danger" type="submit">Delete</button>
+                            </form>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                {approvedSponsors.length > 0 && (
+                  <>
+                    <h3 style={{ marginTop: 14, fontSize: '.95rem' }}>Approved (on banner)</h3>
+                    <div className="list">
+                      {approvedSponsors.map((s) => (
+                        <div className="card success-card" key={s.id}>
+                          <strong>{s.sponsor_name}</strong>
+                          {s.logo_url && (
+                            <img src={s.logo_url} alt={s.sponsor_name} className="sponsor-thumb" />
+                          )}
+                          <p className="muted" style={{ fontSize: '.82rem', marginTop: 6 }}>
+                            <strong>Prize:</strong> {s.prize_description}
+                          </p>
+                          {s.contact_email && <p className="muted" style={{ fontSize: '.78rem' }}>Email: {s.contact_email}</p>}
+                          <div className="toolbar" style={{ marginTop: 8 }}>
+                            <form action={rejectSponsorAction}>
+                              <input type="hidden" name="sponsorId" value={s.id} />
+                              <input type="hidden" name="competitionId" value={competition.id} />
+                              <button className="btn secondary" type="submit">Un-approve</button>
+                            </form>
+                            <form action={deleteSponsorAction}>
+                              <input type="hidden" name="sponsorId" value={s.id} />
+                              <input type="hidden" name="competitionId" value={competition.id} />
+                              <button className="btn danger" type="submit">Delete</button>
+                            </form>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                {sponsors.length === 0 && (
+                  <p className="muted" style={{ fontSize: '.85rem' }}>No sponsors submitted yet.</p>
                 )}
               </aside>
             </section>

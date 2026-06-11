@@ -1,7 +1,9 @@
 import { stepPlaybackQueueAction } from '@/app/actions';
 import { SiteNav } from '@/components/SiteNav';
+import { SponsorBanner } from '@/components/SponsorBanner';
 import { getJudgeSession, isAdminAuthenticated } from '@/lib/session';
 import { getActiveCompetitionBundle, getApprovedEntries, getCurrentPlaybackEntry } from '@/lib/server-data';
+import { getSupabaseAdmin } from '@/lib/server-supabase';
 import { getYouTubeEmbedUrl } from '@/lib/youtube';
 
 export const dynamic = 'force-dynamic';
@@ -45,6 +47,21 @@ export default async function PlaybackPage({ searchParams }: { searchParams?: Se
   const competition = bundle.competition;
   const currentEntry = getCurrentPlaybackEntry(bundle);
   const approvedEntries = getApprovedEntries(bundle.entries);
+
+  // Load approved sponsors for the marquee
+  let sponsors: { id: string; sponsor_name: string; logo_url: string | null; website_url: string | null }[] = [];
+  if (competition) {
+    const supabaseRO = getSupabaseAdmin();
+    if (supabaseRO) {
+      const { data } = await supabaseRO
+        .from('sponsors')
+        .select('id, sponsor_name, logo_url, website_url')
+        .eq('competition_id', competition.id)
+        .eq('approved', true)
+        .order('created_at', { ascending: true });
+      sponsors = (data ?? []) as typeof sponsors;
+    }
+  }
 
   return (
     <main className="page-shell page-stack playback-shell">
@@ -111,6 +128,8 @@ export default async function PlaybackPage({ searchParams }: { searchParams?: Se
           ))}
         </div>
       </section>
+
+      <SponsorBanner sponsors={sponsors} />
     </main>
   );
 }

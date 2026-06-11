@@ -818,6 +818,12 @@ export async function archiveAndResetCompetitionAction(formData: FormData) {
     rank: index + 1
   }));
 
+  // Snapshot sponsors into the archive
+  const { data: sponsorRows } = await supabase
+    .from('sponsors')
+    .select('id, sponsor_name, contact_name, contact_email, website_url, prize_description, logo_url, approved, notes, created_at')
+    .eq('competition_id', bundle.competition.id);
+
   await supabase.from('competition_archives').insert({
     archived_competition_id: bundle.competition.id,
     competition_name: bundle.competition.name,
@@ -826,6 +832,7 @@ export async function archiveAndResetCompetitionAction(formData: FormData) {
       judgeSlots: bundle.judgeSlots,
       entries: bundle.entries,
       scores: bundle.scores,
+      sponsors: sponsorRows ?? [],
       leaderboard
     }
   });
@@ -848,4 +855,190 @@ export async function archiveAndResetCompetitionAction(formData: FormData) {
   revalidatePath('/admin');
   revalidatePath('/playback');
   redirect(routeWithMessage('/admin', 'success', 'Competition archived and replaced with a fresh one.'));
+}
+
+// ====================================================================
+// SPONSORS
+// ====================================================================
+
+const ALLOWED_LOGO_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml', 'image/gif'];
+const MAX_LOGO_BYTES = 4 * 1024 * 1024; // 4 MB
+
+function slugifyLogo(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9.-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60);
+}
+
+export async function submitSponsorAction(formData: FormData) {
+  const competitionId = `${formData.get('competitionId') || ''}`.trim();
+  const sponsorName = `${formData.get('sponsorName') || ''}`.trim();
+  const contactName = `${formData.get('contactName') || ''}`.trim();
+  const contactEmail = `${formData.get('contactEmail') || ''}`.trim();
+  const websiteUrl = `${formData.get('websiteUrl') || ''}`.trim();
+  const prizeDescription = `${formData.get('prizeDescription') || ''}`.trim();
+  const consent = formData.get('consent');
+  const logo = formData.get('logo');
+
+  if (!competitionId) {
+    redirect(routeWithMessage('/sponsor', 'error', 'No active competition is accepting sponsors right now.'));
+  }
+
+  if (!sponsorName || !prizeDescription || !consent) {
+    redirect(routeWithMessage('/sponsor', 'error', 'Sponsor name, prize description, and consent are required.'));
+  }
+
+  if (!(logo instanceof File) || logo.size === 0) {
+    redirect(routeWithMessage('/sponsor', 'error', 'Please attach a logo image (PNG, JPG, WebP, SVG, or GIF).'));
+  }
+
+  if (!ALLOWED_LOGO_TYPES.includes(logo.type)) {
+    redirect(routeWithMessage('/sponsor', 'error', 'Logo must be PNG, JPG, WebP, SVG, or GIF.'));
+  }
+
+  if (logo.size > MAX_LOGO_BYTES) {
+    redirect(routeWithMessage('/sponsor', 'error', 'Logo file is too large. Max size is 4 MB.'));
+  }
+
+  const supabase = requireSupabaseOrRedirect('/sponsor');
+
+  // Verify competition exists
+  const { data: comp } = await supabase
+    .from('competitions')
+    .select('id, status')
+    .eq('id', competitionId)
+    .maybeSingle<{ id: string; status: string }>();
+
+  if (!comp) {
+    redirect(routeWithMessage('/sponsor', 'error', 'Competition not found.'));
+  }
+
+  // Upload logo to storage
+  const ext = (logo.name.split('.').pop() || 'png').toLowerCase().replace(/[^a-z0-9]/g, '') || 'png';
+  const safeBase = slugifyLogo(logo.name.replace(/\.[^.]+$/, '')) || 'logo';
+  const objectKey = `${competitionId}/${crypto.randomBytes(8).toString('hex')}-${safeBase}.${ext}`;
+
+  const arrayBuf = await logo.arrayBuffer();
+  const { error: uploadError } = await supabase.storage
+    .from('sponsor-logos')
+    .upload(objectKey, new Uint8Array(arrayBuf), {
+      contentType: logo.type,
+      upsert: false
+    });
+
+  if (uploadError) {
+    redirect(routeWithMessage('/sponsor', 'error', `Logo upload failed: ${uploadError.message}`));
+  }
+
+  const { data: pub } = supabase.storage.from('sponsor-logos').getPublicUrl(objectKey);
+  const logoUrl = pub?.publicUrl ?? null;
+
+  const { error: insertError } = await supabase.from('sponsors').insert({
+    competition_id: competitionId,
+    sponsor_name: sponsorName,
+    contact_name: contactName || null,
+    contact_email: contactEmail || null,
+    website_url: websiteUrl || null,
+    prize_description: prizeDescription,
+    logo_path: objectKey,
+    logo_url: logoUrl,
+    approved: false
+  });
+
+  if (insertError) {
+    // Best-effort cleanup of orphaned upload
+    await supabase.storage.from('sponsor-logos').remove([objectKey]).catch(() => {});
+    redirect(routeWithMessage('/sponsor', 'error', 'Could not save sponsor entry. Please try again.'));
+  }
+
+  await logAudit('sponsor_submitted', 'sponsors', { sponsorName, contactEmail, prizeDescription }, competitionId);
+  revalidatePath('/admin');
+  revalidatePath('/playback');
+  redirect(routeWithMessage('/sponsor', 'success', 'Thanks! Your sponsorship was submitted for review. The admin will approve it before your logo appears on the playback banner.'));
+}
+
+export async function approveSponsorAction(formData: FormData) {
+  await requireAdmin();
+  const sponsorId = `${formData.get('sponsorId') || ''}`.trim();
+  const competitionId = `${formData.get('competitionId') || ''}`.trim();
+
+  if (!sponsorId) {
+    redirect(routeWithMessage('/admin', 'error', 'Sponsor information missing.'));
+  }
+
+  const supabase = requireSupabaseOrRedirect('/admin');
+  const { error } = await supabase
+    .from('sponsors')
+    .update({ approved: true, updated_at: new Date().toISOString() })
+    .eq('id', sponsorId);
+
+  if (error) {
+    redirect(routeWithMessage('/admin', 'error', 'Unable to approve sponsor.'));
+  }
+
+  await logAudit('sponsor_approved', 'sponsors', { sponsorId }, competitionId);
+  revalidatePath('/admin');
+  revalidatePath('/playback');
+  redirect(routeWithMessage('/admin?filter=pending#sponsors', 'success', 'Sponsor approved and added to the playback banner.'));
+}
+
+export async function rejectSponsorAction(formData: FormData) {
+  await requireAdmin();
+  const sponsorId = `${formData.get('sponsorId') || ''}`.trim();
+  const competitionId = `${formData.get('competitionId') || ''}`.trim();
+  const reason = `${formData.get('reason') || ''}`.trim();
+
+  if (!sponsorId) {
+    redirect(routeWithMessage('/admin', 'error', 'Sponsor information missing.'));
+  }
+
+  const supabase = requireSupabaseOrRedirect('/admin');
+  const { error } = await supabase
+    .from('sponsors')
+    .update({ approved: false, notes: reason || null, updated_at: new Date().toISOString() })
+    .eq('id', sponsorId);
+
+  if (error) {
+    redirect(routeWithMessage('/admin', 'error', 'Unable to reject sponsor.'));
+  }
+
+  await logAudit('sponsor_rejected', 'sponsors', { sponsorId, reason }, competitionId);
+  revalidatePath('/admin');
+  revalidatePath('/playback');
+  redirect(routeWithMessage('/admin?filter=pending#sponsors', 'success', 'Sponsor marked as not approved.'));
+}
+
+export async function deleteSponsorAction(formData: FormData) {
+  await requireAdmin();
+  const sponsorId = `${formData.get('sponsorId') || ''}`.trim();
+  const competitionId = `${formData.get('competitionId') || ''}`.trim();
+
+  if (!sponsorId) {
+    redirect(routeWithMessage('/admin', 'error', 'Sponsor information missing.'));
+  }
+
+  const supabase = requireSupabaseOrRedirect('/admin');
+
+  // Fetch logo path so we can delete the file too
+  const { data: row } = await supabase
+    .from('sponsors')
+    .select('logo_path')
+    .eq('id', sponsorId)
+    .maybeSingle<{ logo_path: string | null }>();
+
+  const { error } = await supabase.from('sponsors').delete().eq('id', sponsorId);
+  if (error) {
+    redirect(routeWithMessage('/admin', 'error', 'Unable to delete sponsor.'));
+  }
+
+  if (row?.logo_path) {
+    await supabase.storage.from('sponsor-logos').remove([row.logo_path]).catch(() => {});
+  }
+
+  await logAudit('sponsor_deleted', 'sponsors', { sponsorId }, competitionId);
+  revalidatePath('/admin');
+  revalidatePath('/playback');
+  redirect(routeWithMessage('/admin?filter=pending#sponsors', 'success', 'Sponsor removed.'));
 }

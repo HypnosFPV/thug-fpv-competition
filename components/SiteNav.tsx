@@ -4,6 +4,7 @@ const links = [
   { href: '/', label: 'Home' },
   { href: '/submit', label: 'Submit Entry' },
   { href: '/my-entries', label: 'My Entries' },
+  { href: '/sponsor', label: 'Sponsor' },
   { href: '/judge', label: 'Judge Portal' },
   { href: '/admin', label: 'Admin' },
   { href: '/playback', label: 'OBS Playback' }
