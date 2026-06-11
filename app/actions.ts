@@ -214,7 +214,7 @@ export async function replaceMyEntryAction(formData: FormData) {
 
   const { data: entryRaw } = await supabase
     .from('entries')
-    .select('id, competition_id, user_id, competitions(status)')
+    .select('id, competition_id, user_id, competitions!entries_competition_id_fkey(status)')
     .eq('id', entryId)
     .maybeSingle();
 

@@ -62,7 +62,7 @@ export default async function EntryStatusPage({ params }: { params: RouteParams 
 
   const { data: dataRaw, error } = await supabase
     .from('entries')
-    .select('id, entrant_name, title, youtube_url, moderation_status, moderation_notes, running_order, created_at, approved_at, competitions(name, status)')
+    .select('id, entrant_name, title, youtube_url, moderation_status, moderation_notes, running_order, created_at, approved_at, competitions!entries_competition_id_fkey(name, status)')
     .eq('status_token', token)
     .maybeSingle();
 
